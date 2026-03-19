@@ -1,0 +1,386 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Stores non-authentication related user data and preferences, linked to an external authentication system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity."
+        },
+        "externalAuthId": {
+          "type": "string",
+          "description": "Reference to the unique identifier from the external authentication system."
+        },
+        "username": {
+          "type": "string",
+          "description": "Display name of the user within the application."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's contact email address, primarily for communication (not authentication).",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user, which determines their permissions.",
+          "enum": [
+            "writer",
+            "reader"
+          ]
+        },
+        "preferences": {
+          "type": "string",
+          "description": "JSON string storing user-specific application settings or preferences."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "externalAuthId",
+        "username",
+        "role",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Ebook": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Ebook",
+      "type": "object",
+      "description": "Represents a single ebook within the application, including its metadata and content structure.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Ebook entity."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who owns or created this ebook. (Relationship: UserProfile 1:N Ebook)"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the ebook."
+        },
+        "authorName": {
+          "type": "string",
+          "description": "The name of the author of the ebook."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief synopsis or description of the ebook content."
+        },
+        "coverImageUrl": {
+          "type": "string",
+          "description": "URL to the cover image of the ebook.",
+          "format": "uri"
+        },
+        "publicationDate": {
+          "type": "string",
+          "description": "The date when the ebook was published or last updated.",
+          "format": "date-time"
+        },
+        "genre": {
+          "type": "string",
+          "description": "The primary genre or category of the ebook."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current publication status of the ebook (e.g., 'draft', 'published', 'private')."
+        },
+        "language": {
+          "type": "string",
+          "description": "The language in which the ebook is written (e.g., 'en', 'id')."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the ebook record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the ebook record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "title",
+        "authorName",
+        "description",
+        "status",
+        "language",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Chapter": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Chapter",
+      "type": "object",
+      "description": "Represents an individual chapter or section within an ebook.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Chapter entity."
+        },
+        "ebookId": {
+          "type": "string",
+          "description": "Reference to the Ebook this chapter belongs to. (Relationship: Ebook 1:N Chapter)"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the chapter."
+        },
+        "content": {
+          "type": "string",
+          "description": "The rich text content of the chapter, potentially in a format like HTML or Markdown."
+        },
+        "order": {
+          "type": "number",
+          "description": "The sequential order of the chapter within its ebook."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the chapter was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the chapter was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ebookId",
+        "title",
+        "content",
+        "order",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Collection": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Collection",
+      "type": "object",
+      "description": "Represents a user-defined collection or grouping of ebooks.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Collection entity."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who owns this collection. (Relationship: UserProfile 1:N Collection)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the collection (e.g., 'Favorites', 'Sci-Fi Reads')."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the collection's purpose or content."
+        },
+        "ebookIds": {
+          "type": "array",
+          "description": "An array of IDs referencing the Ebooks included in this collection. (Relationship: Collection N:N Ebook)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the collection was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the collection was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "name",
+        "ebookIds",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ReadingProgress": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ReadingProgress",
+      "type": "object",
+      "description": "Tracks a user's reading progress for a specific ebook.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ReadingProgress entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile whose progress is being tracked. (Relationship: UserProfile 1:N ReadingProgress)"
+        },
+        "ebookId": {
+          "type": "string",
+          "description": "Reference to the Ebook for which the progress is being tracked. (Relationship: Ebook 1:N ReadingProgress)"
+        },
+        "currentChapterId": {
+          "type": "string",
+          "description": "Reference to the Chapter the user is currently reading. (Relationship: Chapter 1:N ReadingProgress)"
+        },
+        "progressPercentage": {
+          "type": "number",
+          "description": "The reading progress as a percentage (0.0 to 1.0) within the current chapter or entire book."
+        },
+        "lastReadAt": {
+          "type": "string",
+          "description": "Timestamp of the last time the user engaged with this ebook.",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the reading progress record was first created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the reading progress record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "ebookId",
+        "currentChapterId",
+        "progressPercentage",
+        "lastReadAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/user_profiles/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores non-authentication related user data and preferences. Documents are named by their `userId` (matching `request.auth.uid`) and are private to the owning user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, matching `request.auth.uid`."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/ebooks/{ebookId}",
+        "definition": {
+          "entityName": "Ebook",
+          "schema": {
+            "$ref": "#/backend/entities/Ebook"
+          },
+          "description": "Stores individual ebook metadata and details owned by a specific user. The `ownerId` field in the document must match the path's `userId` and `request.auth.uid` for writes. For reads, owners can access all statuses; other users can read only if the `status` field is 'published', supporting QAPs via collection group queries.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns the ebook."
+            },
+            {
+              "name": "ebookId",
+              "description": "The unique identifier of the ebook."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/ebooks/{ebookId}/chapters/{chapterId}",
+        "definition": {
+          "entityName": "Chapter",
+          "schema": {
+            "$ref": "#/backend/entities/Chapter"
+          },
+          "description": "Stores individual chapters for a specific ebook. Each chapter document explicitly includes denormalized `ebookOwnerId` (matching the parent ebook's owner) and `ebookStatus` (matching the parent ebook's publication status) to ensure Authorization Independence. This allows security rules to evaluate chapter access without fetching the parent ebook, supporting QAPs for published chapters.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns the parent ebook."
+            },
+            {
+              "name": "ebookId",
+              "description": "The unique identifier of the parent ebook."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/collections/{collectionId}",
+        "definition": {
+          "entityName": "Collection",
+          "schema": {
+            "$ref": "#/backend/entities/Collection"
+          },
+          "description": "Stores user-defined collections of ebooks. Each collection is private to the owning user; the `ownerId` field in the document must match the path's `userId` and `request.auth.uid`.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns the collection."
+            },
+            {
+              "name": "collectionId",
+              "description": "The unique identifier of the collection."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/reading_progress/{readingProgressId}",
+        "definition": {
+          "entityName": "ReadingProgress",
+          "schema": {
+            "$ref": "#/backend/entities/ReadingProgress"
+          },
+          "description": "Tracks a user's reading progress for specific ebooks. Each progress record is private to the user; the `userId` field in the document must match the path's `userId` and `request.auth.uid`.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user whose reading progress is being tracked."
+            },
+            {
+              "name": "readingProgressId",
+              "description": "The unique identifier for the reading progress record (e.g., a combination of user and ebook ID, or a generated ID)."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed following the core principles of Authorization Independence, Structural Segregation, and Access Modeling to ensure security, scalability, and debuggability. \n\n**Authorization Independence (CRITICAL):**\nThis is achieved primarily through explicit denormalization. For example, `Chapter` documents, which reside as a subcollection of `Ebook`s, will explicitly store `ebookOwnerId` (the ID of the Ebook's owner) and `ebookStatus` (the Ebook's publication status). This means that security rules for `Chapter` documents can directly evaluate `request.auth.uid` against `chapter.ebookOwnerId` and check `chapter.ebookStatus` without needing to perform a `get()` operation on the parent `Ebook` document. This eliminates hierarchical authorization dependencies, enabling atomic operations (like creating an Ebook and its first Chapter in a single batch) and simplifying rule debugging.\n\n**Structural Segregation (Homogeneous Security Posture):**\nAll user-owned and private data (Ebooks, Chapters, Collections, ReadingProgress) are segregated under `/users/{userId}/` paths. This ensures that documents within these collections share a common security posture: they are primarily accessible by the `userId` specified in the path, which must match `request.auth.uid`. \n\n*   **Private Data:** `UserProfile` data is stored in a top-level `user_profiles` collection, accessible only by the owning user (matching `request.auth.uid` to the document ID). User-specific entities like `Collections` and `ReadingProgress` are stored directly under `/users/{userId}/` paths, ensuring `request.auth.uid` matches the path's `userId` and the document's `ownerId` or `userId` field.\n\n*   **Public/Published Content (QAPs):** For `Ebook`s and `Chapter`s, which can have a 'published' status, read access is extended to other users. The `/users/{userId}/ebooks/{ebookId}` structure allows the owner (`request.auth.uid == userId`) to access all their ebooks (drafts, private, published). For global discoverability and listing of *published* ebooks by *any* user, security rules will permit `list` operations via collection group queries on `ebooks` subcollections where `resource.data.status == 'published'`. Similarly, `Chapter` documents, due to denormalized `ebookStatus`, can be read by any user if `chapter.ebookStatus == 'published'`. This approach fully supports QAPs, allowing efficient and secure `list` operations without relying on slow or insecure filters.\n\n**Access Modeling:**\n*   **Path-Based Ownership:** The primary model for user-specific data, such as `/users/{userId}/ebooks/{ebookId}` and `/users/{userId}/collections/{collectionId}`, makes ownership-based security rules extremely simple (`request.auth.uid == userId`).\n*   **Hierarchical Paths:** Nested data like `Chapter`s follow the hierarchy `/users/{userId}/ebooks/{ebookId}/chapters/{chapterId}`, maintaining context and simplifying related data access.\n*   **DBAC:** All authorization is based on `request.auth.uid` matching data in the database (e.g., `ownerId`, `userId` fields, or path wildcards).\n\nThis design prioritizes a flat rule structure, robust authorization independence via denormalization where necessary, and clear access patterns for all data types."
+  }
+}

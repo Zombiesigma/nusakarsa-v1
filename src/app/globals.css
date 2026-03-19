@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 30% 98%;
+    --foreground: 66 40% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 66 40% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 66 40% 10%;
+    --primary: 66 70% 25%;
+    --primary-foreground: 40 30% 98%;
+    --secondary: 66 30% 94%;
+    --secondary-foreground: 66 70% 25%;
+    --muted: 66 20% 94%;
+    --muted-foreground: 66 20% 40%;
+    --accent: 66 50% 45%;
+    --accent-foreground: 40 30% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 40 30% 98%;
+    --border: 66 30% 88%;
+    --input: 66 30% 88%;
+    --ring: 66 70% 25%;
+    --radius: 1.5rem;
+  }
+ 
+  * {
+    @apply border-border;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    @apply scroll-smooth;
+  }
+  
+  a, button, [role="button"] {
+    cursor: pointer;
+  }
+  
+  input, textarea, [contenteditable="true"] {
+      user-select: text;
+      -webkit-user-select: text;
+      cursor: text;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+  .rotate-y-90 {
+    transform: rotateY(90deg);
+  }
+  .markdown-content a {
+    @apply text-primary font-bold no-underline hover:underline;
+  }
+  .markdown-content a[href^="/profile/"] {
+    @apply bg-primary/10 px-1.5 py-0.5 rounded-md hover:bg-primary/20;
+  }
+
+  /* Responsive scrollbar utility */
+  .no-scrollbar-mobile::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar-mobile {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  @media (min-width: 768px) {
+    .no-scrollbar-mobile::-webkit-scrollbar {
+      display: block;
+      width: 12px;
+    }
+    .no-scrollbar-mobile {
+      scrollbar-width: thin;
+      scrollbar-color: hsl(var(--border)) hsl(var(--background));
+    }
+    .no-scrollbar-mobile::-webkit-scrollbar-track {
+      background: hsl(var(--background));
+    }
+    .no-scrollbar-mobile::-webkit-scrollbar-thumb {
+      background-color: hsl(var(--border));
+      border-radius: 10px;
+      border: 3px solid hsl(var(--background));
+    }
+    .no-scrollbar-mobile::-webkit-scrollbar-thumb:hover {
+      background-color: hsl(var(--accent));
+    }
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}
