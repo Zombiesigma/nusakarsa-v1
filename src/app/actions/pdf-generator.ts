@@ -19,7 +19,7 @@ const textDark = rgb(0.1, 0.1, 0.1);
 const textMuted = rgb(0.4, 0.4, 0.4);
 const poemTextColor = rgb(0.2, 0.1, 0.1);
 const POEM_PAPER_TEXTURE_URL = "https://media.istockphoto.com/id/654922866/photo/old-yellowed-stained-paper-texture.jpg?s=612x612&w=0&k=20&c=uInwuGGMQMw2RKMillvZz5suVDgIcKD7yvrOmoPVt-k=";
-const WATERMARK_PATH = path.join(process.cwd(), 'https://raw.githubusercontent.com/Zombiesigma/nusakarsa-v1/refs/heads/main/public/logo/copyright.png');
+const WATERMARK_PATH = path.join(process.cwd(), 'https://raw.githubusercontent.com/Zombiesigma/nusakarsa-v1/main/public/logo/copyright.png');
 
 // --- UTILITY FUNCTIONS ---
 
@@ -203,7 +203,7 @@ export async function generateBookPdf(bookId: string): Promise<string> {
     coverPage.drawText(contactText, { x: MARGIN, y: footerY, size: 9, font: fonts.regular, color: textMuted });
   }
   
-  const footerCopyright = `Diterbitkan melalui Nusakarsa © ${new Date().getFullYear()}`;
+  const footerright = `Diterbitkan melalui Nusakarsa © ${new Date().getFullYear()}`;
   coverPage.drawText(footerCopyright, { x: width - MARGIN - fonts.regular.widthOfTextAtSize(footerCopyright, 9), y: footerY, size: 9, font: fonts.regular, color: textMuted });
 
   // --- CONTENT PAGES ---
