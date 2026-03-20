@@ -376,7 +376,7 @@ export default function JoinAuthorPage() {
                                                         </div>
                                                     </div>
                                                     <div className="text-center space-y-1">
-                                                        <p className="font-black text-base md:text-xl text-foreground tracking-tighter">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(author.followers)} Pengikut</p>
+                                                        <p className="font-black text-base md:text-xl text-foreground tracking-tighter">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(author.followers)}</p>
                                                         <div className="flex items-center justify-center gap-1 text-[7px] md:text-[8px] uppercase font-black tracking-widest text-muted-foreground opacity-50">
                                                             Pengikut
                                                         </div>
@@ -423,187 +423,233 @@ export default function JoinAuthorPage() {
         )
     }
 
-  return (
-    <div className="max-w-5xl mx-auto py-8 md:py-12 px-4 overflow-x-hidden w-full">
-      <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
-        <div className="lg:col-span-5 space-y-8 md:space-y-10">
-            <div className="space-y-4 md:space-y-6">
+    // === TAMBAHAN: Halaman Tunggu untuk Status Pending ===
+    if (applicationStatus === 'pending') {
+        return (
+            <div className="max-w-2xl mx-auto py-12 px-4">
                 <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center space-y-8"
                 >
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-[9px] md:text-[10px] font-black uppercase tracking-widest mb-3 md:mb-4">
-                        <PenTool className="h-3 w-3" /> Karir Penulis
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-4">
+                        <Clock className="h-3 w-3" /> Menunggu Verifikasi
                     </div>
-                    <h1 className="text-3xl md:text-5xl font-headline font-black leading-tight tracking-tight text-foreground">
-                        Mulai Perjalanan <br/> <span className="text-primary italic underline decoration-primary/20 underline-offset-8">Sastramu</span>
+                    <h1 className="text-3xl md:text-5xl font-headline font-black text-foreground tracking-tight">
+                        Lamaran Anda <span className="text-primary italic">Terkirim</span>
                     </h1>
-                    <p className="mt-4 md:mt-6 text-base md:text-lg text-muted-foreground leading-relaxed font-medium">
-                        Bergabunglah dengan komunitas pujangga modern dan mulai bagikan dunia imajinasi Anda kepada pembaca global di Nusakarsa.
+                    <div className="bg-card/50 backdrop-blur-xl rounded-[2rem] p-8 md:p-12 shadow-2xl border border-white/10 space-y-6">
+                        <div className="flex justify-center">
+                            <div className="p-4 rounded-full bg-primary/10 text-primary">
+                                <Clock className="h-12 w-12 md:h-16 md:w-16" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <p className="text-xl md:text-2xl font-black">Lamaran Sedang Diproses</p>
+                            <p className="text-muted-foreground font-medium">
+                                Terima kasih telah mendaftar sebagai penulis. Tim Nusakarsa akan meninjau data profesional Anda dalam 1x24 jam. 
+                                Status lamaran dapat dilihat di halaman ini atau melalui notifikasi.
+                            </p>
+                        </div>
+                        <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center">
+                            <Button asChild variant="outline" className="rounded-full">
+                                <Link href="/dashboard">Ke Dashboard</Link>
+                            </Button>
+                            <Button asChild className="rounded-full">
+                                <Link href="/">Kembali ke Beranda</Link>
+                            </Button>
+                        </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-8">
+                        * Hasil verifikasi akan dikirimkan ke email dan notifikasi akun Anda.
                     </p>
                 </motion.div>
             </div>
+        );
+    }
 
-            <div className="space-y-6 md:space-y-8">
-                {[
-                    { icon: BookOpen, title: "Publikasi Tanpa Batas", desc: "Unggah karya Anda tanpa biaya sepeser pun dan jangkau audiens yang tepat.", color: "text-blue-500" },
-                    { icon: Users, title: "Bangun Komunitas", desc: "Terhubung langsung dengan pembaca setia melalui pesan dan cerita singkat.", color: "text-green-500" },
-                    { icon: Star, title: "Reputasi & Verifikasi", desc: "Dapatkan lencana penulis resmi dan tingkatkan otoritas Anda di dunia literasi.", color: "text-orange-500" }
-                ].map((item, i) => (
+    // Jika status 'not_applied', tampilkan formulir pendaftaran
+    return (
+        <div className="max-w-5xl mx-auto py-8 md:py-12 px-4 overflow-x-hidden w-full">
+            <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
+                <div className="lg:col-span-5 space-y-8 md:space-y-10">
+                    <div className="space-y-4 md:space-y-6">
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                        >
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-[9px] md:text-[10px] font-black uppercase tracking-widest mb-3 md:mb-4">
+                                <PenTool className="h-3 w-3" /> Karir Penulis
+                            </div>
+                            <h1 className="text-3xl md:text-5xl font-headline font-black leading-tight tracking-tight text-foreground">
+                                Mulai Perjalanan <br/> <span className="text-primary italic underline decoration-primary/20 underline-offset-8">Sastramu</span>
+                            </h1>
+                            <p className="mt-4 md:mt-6 text-base md:text-lg text-muted-foreground leading-relaxed font-medium">
+                                Bergabunglah dengan komunitas pujangga modern dan mulai bagikan dunia imajinasi Anda kepada pembaca global di Nusakarsa.
+                            </p>
+                        </motion.div>
+                    </div>
+
+                    <div className="space-y-6 md:space-y-8">
+                        {[
+                            { icon: BookOpen, title: "Publikasi Tanpa Batas", desc: "Unggah karya Anda tanpa biaya sepeser pun dan jangkau audiens yang tepat.", color: "text-blue-500" },
+                            { icon: Users, title: "Bangun Komunitas", desc: "Terhubung langsung dengan pembaca setia melalui pesan dan cerita singkat.", color: "text-green-500" },
+                            { icon: Star, title: "Reputasi & Verifikasi", desc: "Dapatkan lencana penulis resmi dan tingkatkan otoritas Anda di dunia literasi.", color: "text-orange-500" }
+                        ].map((item, i) => (
+                            <motion.div 
+                                key={i}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.1 + (i * 0.1) }}
+                                className="flex gap-4 md:gap-5 items-start group"
+                            >
+                                <div className={cn("p-3 md:p-3.5 rounded-xl md:rounded-2xl shrink-0 bg-white shadow-xl shadow-primary/5 transition-transform group-hover:scale-110 duration-300", item.color)}>
+                                    <item.icon className="h-5 w-5 md:h-6 md:w-6" />
+                                </div>
+                                <div className="space-y-0.5 md:space-y-1">
+                                    <h4 className="font-black text-base md:text-lg group-hover:text-primary transition-colors">{item.title}</h4>
+                                    <p className="text-xs md:text-sm text-muted-foreground leading-relaxed font-medium">{item.desc}</p>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="lg:col-span-7">
                     <motion.div 
-                        key={i}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 + (i * 0.1) }}
-                        className="flex gap-4 md:gap-5 items-start group"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, type: 'spring' }}
                     >
-                        <div className={cn("p-3 md:p-3.5 rounded-xl md:rounded-2xl shrink-0 bg-white shadow-xl shadow-primary/5 transition-transform group-hover:scale-110 duration-300", item.color)}>
-                            <item.icon className="h-5 w-5 md:h-6 md:w-6" />
-                        </div>
-                        <div className="space-y-0.5 md:space-y-1">
-                            <h4 className="font-black text-base md:text-lg group-hover:text-primary transition-colors">{item.title}</h4>
-                            <p className="text-xs md:text-sm text-muted-foreground leading-relaxed font-medium">{item.desc}</p>
-                        </div>
+                        <Card className="rounded-[2.5rem] md:rounded-[3rem] border-none shadow-2xl bg-card overflow-hidden">
+                            <CardHeader className="bg-primary/5 p-6 md:p-10 border-b border-primary/10">
+                                <div className="flex items-center gap-4 md:gap-5">
+                                    <div className="bg-white p-3 md:p-4 rounded-[1.25rem] md:rounded-[1.5rem] shadow-xl text-primary">
+                                        <BookUser className="h-6 w-6 md:h-8 md:w-8" />
+                                    </div>
+                                    <div>
+                                        <CardTitle className="text-xl md:text-2xl font-headline font-black">Formulir Pujangga</CardTitle>
+                                        <CardDescription className="font-bold uppercase tracking-[0.2em] text-[8px] md:text-[10px] text-primary/60 mt-0.5">Lengkapi data profesional untuk kurasi industri</CardDescription>
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <Form {...form}>
+                                <form onSubmit={form.handleSubmit(onSubmit)}>
+                                    <CardContent className="p-6 md:p-10 space-y-6 md:space-y-8">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                                            <FormField
+                                                control={form.control}
+                                                name="name"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="font-black text-[10px] md:text-xs uppercase tracking-widest ml-1">Nama Lengkap</FormLabel>
+                                                        <FormControl>
+                                                            <Input placeholder="Guntur Padilah" {...field} className="h-12 md:h-14 rounded-xl md:rounded-2xl bg-muted/30 border-none focus-visible:ring-primary/20 font-bold px-4 md:px-5 text-sm" />
+                                                        </FormControl>
+                                                        <FormMessage className="text-[10px]" />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name="email"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="font-black text-[10px] md:text-xs uppercase tracking-widest ml-1">Email Resmi</FormLabel>
+                                                        <FormControl>
+                                                            <Input type="email" {...field} readOnly className="h-12 md:h-14 rounded-xl md:rounded-2xl bg-muted/50 border-none cursor-not-allowed opacity-70 px-4 md:px-5 font-bold text-sm" />
+                                                        </FormControl>
+                                                        <FormMessage className="text-[10px]" />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                                            <FormField
+                                                control={form.control}
+                                                name="phoneNumber"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="font-black text-[10px] md:text-xs uppercase tracking-widest ml-1">Nomor Ponsel (WhatsApp)</FormLabel>
+                                                        <FormControl>
+                                                            <div className="relative group">
+                                                                <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                                                <Input placeholder="0812..." {...field} className="h-12 md:h-14 pl-11 rounded-xl md:rounded-2xl bg-muted/30 border-none focus-visible:ring-primary/20 font-bold text-sm" />
+                                                            </div>
+                                                        </FormControl>
+                                                        <FormMessage className="text-[10px]" />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name="domicile"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="font-black text-[10px] md:text-xs uppercase tracking-widest ml-1">Domisili (Kota/Kabupaten)</FormLabel>
+                                                        <FormControl>
+                                                            <div className="relative group">
+                                                                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                                                <Input placeholder="Jakarta, Indonesia" {...field} className="h-12 md:h-14 pl-11 rounded-xl md:rounded-2xl bg-muted/30 border-none focus-visible:ring-primary/20 font-bold text-sm" />
+                                                            </div>
+                                                        </FormControl>
+                                                        <FormMessage className="text-[10px]" />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+
+                                        <FormField
+                                            control={form.control}
+                                            name="portfolio"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="font-black text-[10px] md:text-xs uppercase tracking-widest ml-1">Portofolio / Tautan Karya (Opsional)</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="https://karyasaya.com" {...field} className="h-12 md:h-14 rounded-xl md:rounded-2xl bg-muted/30 border-none focus-visible:ring-primary/20 font-bold px-4 md:px-5 text-sm" />
+                                                    </FormControl>
+                                                    <FormDescription className="text-[9px] md:text-[10px] font-bold text-muted-foreground/60 ml-1 uppercase tracking-tighter">Tautkan tulisan atau blog yang pernah Anda publikasikan.</FormDescription>
+                                                    <FormMessage className="text-[10px]" />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <FormField
+                                            control={form.control}
+                                            name="motivation"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="font-black text-[10px] md:text-xs uppercase tracking-widest ml-1">Apa visi Anda bergabung di Nusakarsa?</FormLabel>
+                                                    <FormControl>
+                                                        <Textarea 
+                                                            placeholder="Ceritakan gairah menulis Anda dan apa yang ingin Anda capai..." 
+                                                            rows={5} 
+                                                            {...field} 
+                                                            className="rounded-[1.5rem] md:rounded-[2rem] bg-muted/30 border-none focus-visible:ring-primary/20 resize-none py-4 px-5 md:py-5 md:px-6 font-medium text-sm md:text-base leading-relaxed shadow-inner"
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage className="text-[10px]" />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </CardContent>
+                                    <CardFooter className="p-6 md:p-10 pt-0">
+                                        <Button type="submit" className="w-full h-14 md:h-16 rounded-[1.25rem] md:rounded-[1.5rem] font-black text-sm md:text-base shadow-2xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95 group overflow-hidden relative" disabled={isSubmitting}>
+                                            <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary opacity-0 group-hover:opacity-10 transition-opacity" />
+                                            {isSubmitting ? (
+                                                <><Loader2 className="mr-2 md:mr-3 h-5 w-5 md:h-6 md:w-6 animate-spin"/> Sedang Mengirim...</>
+                                            ) : (
+                                                <><Send className="mr-2 md:mr-3 h-4 w-4 md:h-5 md:w-5 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1"/> Ajukan Lamaran Penulis</>
+                                            )}
+                                        </Button>
+                                    </CardFooter>
+                                </form>
+                            </Form>
+                        </Card>
                     </motion.div>
-                ))}
+                </div>
             </div>
         </div>
-
-        <div className="lg:col-span-7">
-            <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, type: 'spring' }}
-            >
-                <Card className="rounded-[2.5rem] md:rounded-[3rem] border-none shadow-2xl bg-card overflow-hidden">
-                    <CardHeader className="bg-primary/5 p-6 md:p-10 border-b border-primary/10">
-                        <div className="flex items-center gap-4 md:gap-5">
-                            <div className="bg-white p-3 md:p-4 rounded-[1.25rem] md:rounded-[1.5rem] shadow-xl text-primary">
-                                <BookUser className="h-6 w-6 md:h-8 md:w-8" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-xl md:text-2xl font-headline font-black">Formulir Pujangga</CardTitle>
-                                <CardDescription className="font-bold uppercase tracking-[0.2em] text-[8px] md:text-[10px] text-primary/60 mt-0.5">Lengkapi data profesional untuk kurasi industri</CardDescription>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)}>
-                            <CardContent className="p-6 md:p-10 space-y-6 md:space-y-8">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                                    <FormField
-                                        control={form.control}
-                                        name="name"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="font-black text-[10px] md:text-xs uppercase tracking-widest ml-1">Nama Lengkap</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="Guntur Padilah" {...field} className="h-12 md:h-14 rounded-xl md:rounded-2xl bg-muted/30 border-none focus-visible:ring-primary/20 font-bold px-4 md:px-5 text-sm" />
-                                                </FormControl>
-                                                <FormMessage className="text-[10px]" />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="email"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="font-black text-[10px] md:text-xs uppercase tracking-widest ml-1">Email Resmi</FormLabel>
-                                                <FormControl>
-                                                    <Input type="email" {...field} readOnly className="h-12 md:h-14 rounded-xl md:rounded-2xl bg-muted/50 border-none cursor-not-allowed opacity-70 px-4 md:px-5 font-bold text-sm" />
-                                                </FormControl>
-                                                <FormMessage className="text-[10px]" />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                                    <FormField
-                                        control={form.control}
-                                        name="phoneNumber"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="font-black text-[10px] md:text-xs uppercase tracking-widest ml-1">Nomor Ponsel (WhatsApp)</FormLabel>
-                                                <FormControl>
-                                                    <div className="relative group">
-                                                        <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                                                        <Input placeholder="0812..." {...field} className="h-12 md:h-14 pl-11 rounded-xl md:rounded-2xl bg-muted/30 border-none focus-visible:ring-primary/20 font-bold text-sm" />
-                                                    </div>
-                                                </FormControl>
-                                                <FormMessage className="text-[10px]" />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="domicile"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="font-black text-[10px] md:text-xs uppercase tracking-widest ml-1">Domisili (Kota/Kabupaten)</FormLabel>
-                                                <FormControl>
-                                                    <div className="relative group">
-                                                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                                                        <Input placeholder="Jakarta, Indonesia" {...field} className="h-12 md:h-14 pl-11 rounded-xl md:rounded-2xl bg-muted/30 border-none focus-visible:ring-primary/20 font-bold text-sm" />
-                                                    </div>
-                                                </FormControl>
-                                                <FormMessage className="text-[10px]" />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-
-                                <FormField
-                                    control={form.control}
-                                    name="portfolio"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className="font-black text-[10px] md:text-xs uppercase tracking-widest ml-1">Portofolio / Tautan Karya (Opsional)</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="https://karyasaya.com" {...field} className="h-12 md:h-14 rounded-xl md:rounded-2xl bg-muted/30 border-none focus-visible:ring-primary/20 font-bold px-4 md:px-5 text-sm" />
-                                            </FormControl>
-                                            <FormDescription className="text-[9px] md:text-[10px] font-bold text-muted-foreground/60 ml-1 uppercase tracking-tighter">Tautkan tulisan atau blog yang pernah Anda publikasikan.</FormDescription>
-                                            <FormMessage className="text-[10px]" />
-                                        </FormItem>
-                                    )}
-                                />
-
-                                <FormField
-                                    control={form.control}
-                                    name="motivation"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className="font-black text-[10px] md:text-xs uppercase tracking-widest ml-1">Apa visi Anda bergabung di Nusakarsa?</FormLabel>
-                                            <FormControl>
-                                                <Textarea 
-                                                    placeholder="Ceritakan gairah menulis Anda dan apa yang ingin Anda capai..." 
-                                                    rows={5} 
-                                                    {...field} 
-                                                    className="rounded-[1.5rem] md:rounded-[2rem] bg-muted/30 border-none focus-visible:ring-primary/20 resize-none py-4 px-5 md:py-5 md:px-6 font-medium text-sm md:text-base leading-relaxed shadow-inner"
-                                                />
-                                            </FormControl>
-                                            <FormMessage className="text-[10px]" />
-                                        </FormItem>
-                                    )}
-                                />
-                            </CardContent>
-                            <CardFooter className="p-6 md:p-10 pt-0">
-                                <Button type="submit" className="w-full h-14 md:h-16 rounded-[1.25rem] md:rounded-[1.5rem] font-black text-sm md:text-base shadow-2xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95 group overflow-hidden relative" disabled={isSubmitting}>
-                                    <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary opacity-0 group-hover:opacity-10 transition-opacity" />
-                                    {isSubmitting ? (
-                                        <><Loader2 className="mr-2 md:mr-3 h-5 w-5 md:h-6 md:w-6 animate-spin"/> Sedang Mengirim...</>
-                                    ) : (
-                                        <><Send className="mr-2 md:mr-3 h-4 w-4 md:h-5 md:w-5 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1"/> Ajukan Lamaran Penulis</>
-                                    )}
-                                </Button>
-                            </CardFooter>
-                        </form>
-                    </Form>
-                </Card>
-            </motion.div>
-        </div>
-      </div>
-    </div>
-  )
+    )
 }
