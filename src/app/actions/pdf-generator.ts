@@ -174,6 +174,7 @@ export async function generateBookPdf(bookId: string): Promise<string> {
   const fontHeadline = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const fontSerifRegular = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const fontSerifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+  const fontSerifItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
 
   // --- PROFESSIONAL COVER PAGE ---
   let coverPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -244,6 +245,38 @@ export async function generateBookPdf(bookId: string): Promise<string> {
       size: 16,
       color: textMuted,
   });
+  titleY -= 35;
+
+  // Synopsis
+  if (book.description) {
+      const synopsis = book.description;
+      const truncatedSynopsis = synopsis.length > 250 ? synopsis.substring(0, 250) + '...' : synopsis;
+      const synopsisLines = wrapText(truncatedSynopsis, width - (MARGIN * 4), fontSerifItalic, 10);
+      
+      titleY -= 15;
+      coverPage.drawLine({
+          start: { x: width/2 - 30, y: titleY },
+          end: { x: width/2 + 30, y: titleY },
+          thickness: 0.5,
+          color: nusakarsaPrimary,
+          opacity: 0.8,
+      });
+      titleY -= 20;
+
+      for (const line of synopsisLines) {
+          if (titleY < MARGIN + 100) break; 
+          const lineWidth = fontSerifItalic.widthOfTextAtSize(line, 10);
+          coverPage.drawText(line, {
+              x: width / 2 - lineWidth / 2,
+              y: titleY,
+              font: fontSerifItalic,
+              size: 10,
+              color: textMuted,
+              lineHeight: 14,
+          });
+          titleY -= 14;
+      }
+  }
 
   // Genre
   if (book.genre) {
@@ -267,85 +300,6 @@ export async function generateBookPdf(bookId: string): Promise<string> {
       width: logoDims.width,
       height: logoDims.height,
       opacity: 0.7
-  });
-
-  // --- BACK COVER PAGE ---
-  const backCoverPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  backCoverPage.drawRectangle({ x: 0, y: 0, width, height, color: nusakarsaBackground });
-  
-  let backY = height - MARGIN * 1.5;
-
-  if (book.description) {
-      backCoverPage.drawText('Sinopsis', {
-        x: MARGIN,
-        y: backY,
-        font: fontSerifBold,
-        size: 18,
-        color: defaultTextDark,
-      });
-      backY -= 30;
-
-      const descLines = wrapText(book.description, width - (MARGIN * 2), fontSerifRegular, 11);
-      for (const line of descLines) {
-          if (backY < MARGIN * 3) break;
-          backCoverPage.drawText(line, {
-              x: MARGIN,
-              y: backY,
-              font: fontSerifRegular,
-              size: 11,
-              color: textMuted,
-              lineHeight: 16
-          });
-          backY -= 16;
-      }
-  }
-
-  // Author Bio Section
-  let authorSectionY = MARGIN * 3.5;
-  if (book.authorAvatarUrl) {
-    try {
-        const avatarBytes = await fetch(book.authorAvatarUrl).then(res => res.arrayBuffer());
-        const avatarImage = book.authorAvatarUrl.toLowerCase().includes('.png') ? await pdfDoc.embedPng(avatarBytes) : await pdfDoc.embedJpg(avatarBytes);
-        const avatarSize = 80;
-        backCoverPage.drawImage(avatarImage, {
-            x: width / 2 - avatarSize / 2,
-            y: authorSectionY,
-            width: avatarSize,
-            height: avatarSize,
-        });
-        
-        const authorNameText = book.authorName;
-        const authorNameWidth = fontSerifBold.widthOfTextAtSize(authorNameText, 14);
-        backCoverPage.drawText(authorNameText, {
-            x: width / 2 - authorNameWidth / 2,
-            y: authorSectionY - 20,
-            font: fontSerifBold,
-            size: 14,
-            color: defaultTextDark,
-        });
-        
-        const authorRoleText = 'Penulis';
-        const authorRoleWidth = fontSerifRegular.widthOfTextAtSize(authorRoleText, 10);
-        backCoverPage.drawText(authorRoleText, {
-            x: width / 2 - authorRoleWidth / 2,
-            y: authorSectionY - 35,
-            font: fontSerifRegular,
-            size: 10,
-            color: textMuted,
-        });
-
-    } catch (e) { console.warn("Could not embed author avatar:", e); }
-  }
-  
-  // Footer
-  const footerTextBack = `Diterbitkan melalui Nusakarsa © ${new Date().getFullYear()}`;
-  const footerBackWidth = fontSerifRegular.widthOfTextAtSize(footerTextBack, 9);
-  backCoverPage.drawText(footerTextBack, {
-      x: width / 2 - footerBackWidth/2,
-      y: MARGIN,
-      size: 9,
-      font: fontSerifRegular,
-      color: textMuted,
   });
 
   // --- CONTENT PAGES ---
