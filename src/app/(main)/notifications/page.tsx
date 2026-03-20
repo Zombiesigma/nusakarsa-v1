@@ -1,27 +1,37 @@
-
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useUser, useCollection } from '@/firebase';
-import { collection, query, orderBy, doc, updateDoc, writeBatch, arrayUnion, increment, where } from 'firebase/firestore';
+import { collection, query, orderBy, doc, updateDoc, writeBatch, deleteDoc, where, arrayUnion } from 'firebase/firestore';
 import type { Notification, CollaborationInvitation } from '@/lib/types';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  Bell, 
-  MessageCircle, 
-  UserPlus, 
-  Heart, 
-  PenTool, 
-  Megaphone, 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Bell,
+  MessageCircle,
+  UserPlus,
+  Heart,
+  PenTool,
+  Megaphone,
   CheckCheck,
   ChevronRight,
   Loader2,
   Check,
   X,
-  Users
+  Users,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow, isToday, isYesterday } from 'date-fns';
@@ -36,6 +46,8 @@ export default function NotificationsPage() {
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
   const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -76,7 +88,38 @@ export default function NotificationsPage() {
           batch.update(notifRef, { read: true });
       });
       await batch.commit();
-  }
+      toast({
+        title: "Semua notifikasi telah ditandai dibaca",
+      });
+  };
+
+  const handleDeleteAll = async () => {
+    if (!firestore || !currentUser || !notifications || notifications.length === 0) return;
+    
+    setIsDeletingAll(true);
+    try {
+      const batch = writeBatch(firestore);
+      notifications.forEach(notif => {
+        const notifRef = doc(firestore, `users/${currentUser.uid}/notifications`, notif.id);
+        batch.delete(notifRef);
+      });
+      await batch.commit();
+      toast({
+        variant: 'success',
+        title: "Semua notifikasi berhasil dihapus",
+      });
+    } catch (error) {
+      console.error('Gagal menghapus notifikasi:', error);
+      toast({
+        variant: 'destructive',
+        title: "Gagal menghapus notifikasi",
+        description: "Silakan coba lagi.",
+      });
+    } finally {
+      setIsDeletingAll(false);
+      setShowDeleteConfirm(false);
+    }
+  };
 
   const handleInviteResponse = async (invitation: CollaborationInvitation, accept: boolean) => {
     if (!firestore || !currentUser) return;
@@ -113,7 +156,7 @@ export default function NotificationsPage() {
     } finally {
         setProcessingInviteId(null);
     }
-  }
+  };
 
 
   const groupedNotifications = useMemo(() => {
@@ -155,9 +198,31 @@ export default function NotificationsPage() {
           </div>
           <h1 className="text-4xl font-headline font-black tracking-tight">Kabar <span className="text-primary">Terbaru</span></h1>
         </div>
-        <Button variant="outline" size="sm" disabled={unreadCount === 0} onClick={handleMarkAllAsRead} className="rounded-full px-6 font-bold border-2">
-          <CheckCheck className="mr-2 h-4 w-4" /> Tandai Dibaca
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            disabled={unreadCount === 0} 
+            onClick={handleMarkAllAsRead} 
+            className="rounded-full px-6 font-bold border-2"
+          >
+            <CheckCheck className="mr-2 h-4 w-4" /> Tandai Dibaca
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            disabled={notifications?.length === 0 || isDeletingAll} 
+            onClick={() => setShowDeleteConfirm(true)}
+            className="rounded-full px-6 font-bold border-2 border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive"
+          >
+            {isDeletingAll ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="mr-2 h-4 w-4" />
+            )}
+            Hapus Semua
+          </Button>
+        </div>
       </div>
       
       {isLoading ? (
@@ -228,6 +293,25 @@ export default function NotificationsPage() {
           })}
         </div>
       )}
+
+      {/* Konfirmasi Hapus Semua */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Semua Notifikasi?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini akan menghapus semua notifikasi Anda secara permanen. 
+              Apakah Anda yakin ingin melanjutkan?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-full">Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteAll} className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Ya, Hapus Semua
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
