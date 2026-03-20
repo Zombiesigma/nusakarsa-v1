@@ -1,5 +1,3 @@
-
-
 'use server';
 
 import { PDFDocument as PDFLib, StandardFonts, rgb, degrees } from 'pdf-lib';
@@ -10,16 +8,16 @@ import { initializeFirebase } from '@/firebase';
 import { collection, query, orderBy, getDocs, doc, getDoc, where } from 'firebase/firestore';
 import type { Book, Chapter, User } from '@/lib/types';
 
-const PAGE_WIDTH = 595.28; 
-const PAGE_HEIGHT = 841.89; 
-const MARGIN = 72; 
+const PAGE_WIDTH = 595.28;
+const PAGE_HEIGHT = 841.89;
+const MARGIN = 72;
 
 // --- THEME ASSETS ---
 const POEM_PAPER_TEXTURE_URL = "https://media.istockphoto.com/id/654922866/photo/old-yellowed-stained-paper-texture.jpg?s=612x612&w=0&k=20&c=uInwuGGMQMw2RKMillvZz5suVDgIcKD7yvrOmoPVt-k=";
 const WATERMARK_URL = 'https://raw.githubusercontent.com/Zombiesigma/nusakarsa-v2/main/public/logo/copyright.png';
 
 // --- THEME COLORS ---
-const nusakarsaPrimary = rgb(0.45, 0.56, 0.22); 
+const nusakarsaPrimary = rgb(0.45, 0.56, 0.22);
 const nusakarsaBackground = rgb(0.97, 0.98, 0.96);
 const defaultTextDark = rgb(0.1, 0.1, 0.1);
 const textMuted = rgb(0.4, 0.4, 0.4);
@@ -53,7 +51,7 @@ function addPageBackground(page: PDFPage, texture?: PDFImage, fallbackColor?: Re
  */
 function addWatermarkToPage(page: PDFPage, watermarkImage: PDFImage) {
     const { width, height } = page.getSize();
-    const watermarkDims = watermarkImage.scale(0.8); 
+    const watermarkDims = watermarkImage.scale(0.8);
 
     page.drawImage(watermarkImage, {
         x: width / 2 - watermarkDims.width / 2,
@@ -68,7 +66,6 @@ function addWatermarkToPage(page: PDFPage, watermarkImage: PDFImage) {
 function sanitizePath(str: string): string {
   return str.replace(/[^a-z0-9]/gi, '_').toLowerCase().trim();
 }
-
 
 async function drawMarkdownParagraph(
   page: PDFPage,
@@ -152,7 +149,6 @@ async function drawMarkdownParagraph(
     return { y: currentY, page: currentPage };
 }
 
-
 export async function generateBookPdf(bookId: string): Promise<string> {
   const { firestore } = initializeFirebase();
   if (!firestore) throw new Error('Firestore not initialized');
@@ -186,38 +182,93 @@ export async function generateBookPdf(bookId: string): Promise<string> {
   const fontHeadline = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const fontSerifRegular = await pdfDoc.embedFont(StandardFonts.TimesRoman);
 
-  // --- CINEMATIC COVER PAGE ---
+  // --- ENHANCED COVER PAGE ---
   let coverPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   const { width, height } = coverPage.getSize();
 
+  // Background
   coverPage.drawRectangle({ x: 0, y: 0, width, height, color: nusakarsaBackground });
   addWatermarkToPage(coverPage, watermarkImage);
 
+  // Bingkai dekoratif tipis
+  coverPage.drawRectangle({
+    x: 10,
+    y: 10,
+    width: width - 20,
+    height: height - 20,
+    borderColor: rgb(0.8, 0.8, 0.8),
+    borderWidth: 0.5,
+    opacity: 0.5,
+    color: undefined
+  });
 
-  const titleLines = wrapText(book.title, width - (MARGIN * 2), fontHeadline, 42);
-  let currentY = height - 220;
+  // Judul (rata tengah)
+  const titleFontSize = 48;
+  const titleMaxWidth = width - MARGIN * 2;
+  const titleLines = wrapText(book.title, titleMaxWidth, fontHeadline, titleFontSize);
+  const titleLineHeight = titleFontSize * 1.2;
+  let titleY = height - 200;
+
   for (const line of titleLines) {
-      coverPage.drawText(line, { 
-        x: MARGIN, y: currentY, font: fontHeadline, size: 42, color: defaultTextDark, 
-        maxWidth: width - MARGIN * 2, lineHeight: 50, 
-        wordBreaks: [' '] 
-      });
-      currentY -= 50;
+    const textWidth = fontHeadline.widthOfTextAtSize(line, titleFontSize);
+    const x = (width - textWidth) / 2;
+    coverPage.drawText(line, {
+      x,
+      y: titleY,
+      font: fontHeadline,
+      size: titleFontSize,
+      color: defaultTextDark
+    });
+    titleY -= titleLineHeight;
   }
 
-  coverPage.drawLine({ start: { x: MARGIN, y: currentY }, end: { x: width - MARGIN, y: currentY }, thickness: 0.5, color: defaultTextDark, opacity: 0.5 });
-  currentY -= 30;
-
-  coverPage.drawText(`Sebuah Mahakarya oleh ${book.authorName}`, { 
-      x: MARGIN, y: currentY, font: fontSerifRegular, size: 16, color: textMuted
+  // Garis dekoratif di bawah judul
+  const lineY = titleY + 20;
+  const lineLength = 100;
+  coverPage.drawLine({
+    start: { x: (width - lineLength) / 2, y: lineY },
+    end: { x: (width + lineLength) / 2, y: lineY },
+    thickness: 1,
+    color: nusakarsaPrimary,
+    opacity: 0.7
   });
 
+  // Penulis (rata tengah)
+  const authorY = lineY - 40;
+  const authorText = `Karya ${book.authorName}`;
+  const authorFontSize = 18;
+  const authorWidth = fontSerifRegular.widthOfTextAtSize(authorText, authorFontSize);
+  coverPage.drawText(authorText, {
+    x: (width - authorWidth) / 2,
+    y: authorY,
+    font: fontSerifRegular,
+    size: authorFontSize,
+    color: defaultTextDark
+  });
+
+  // Jenis buku (rata tengah)
+  const typeText = book.type === 'poem' ? 'Kumpulan Puisi' : 'Novel';
+  const typeFontSize = 14;
+  const typeWidth = fontSerifRegular.widthOfTextAtSize(typeText, typeFontSize);
+  coverPage.drawText(typeText, {
+    x: (width - typeWidth) / 2,
+    y: authorY - 30,
+    font: fontSerifRegular,
+    size: typeFontSize,
+    color: textMuted
+  });
+
+  // Footer (tetap)
   const footerText = `Diterbitkan melalui Nusakarsa © ${new Date().getFullYear()}`;
   coverPage.drawText(footerText, {
-      x: MARGIN, y: MARGIN, size: 9, font: fontSerifRegular, color: textMuted
+    x: MARGIN,
+    y: MARGIN,
+    size: 9,
+    font: fontSerifRegular,
+    color: textMuted
   });
 
-  // --- CONTENT PAGES ---
+  // --- CONTENT PAGES (tidak berubah) ---
   let contentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   addPageBackground(contentPage, pageTheme.paperTexture);
   addWatermarkToPage(contentPage, watermarkImage);
@@ -227,7 +278,7 @@ export async function generateBookPdf(bookId: string): Promise<string> {
   const fontSerifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
   for (const chapter of chapters) {
-    const spaceNeeded = 22 /* title */ + 20 /* margin */ + 24 /* first line estimate */ ;
+    const spaceNeeded = 22 /* title */ + 20 /* margin */ + 24 /* first line estimate */;
     if (contentY < MARGIN + spaceNeeded) {
         contentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
         addPageBackground(contentPage, pageTheme.paperTexture);
@@ -236,10 +287,14 @@ export async function generateBookPdf(bookId: string): Promise<string> {
         contentY = height - MARGIN;
     }
 
-    const chapterTitleLines = wrapText(chapter.title, width - MARGIN*2, fontSerifBold, 22);
-    for(const line of chapterTitleLines) {
+    const chapterTitleLines = wrapText(chapter.title, width - MARGIN * 2, fontSerifBold, 22);
+    for (const line of chapterTitleLines) {
         contentPage.drawText(line, {
-          x: MARGIN, y: contentY, size: 22, font: fontSerifBold, color: pageTheme.textColor
+          x: MARGIN,
+          y: contentY,
+          size: 22,
+          font: fontSerifBold,
+          color: pageTheme.textColor
         });
         contentY -= 28;
     }
@@ -336,7 +391,7 @@ async function uploadPdfToGithub(buffer: Buffer, fileName: string, folderPath: s
   return `https://raw.githubusercontent.com/${owner}/${repo}/main/${filePath}`;
 }
 
-async function uploadToPublicService(buffer: Buffer, fileName:string): Promise<string> {
+async function uploadToPublicService(buffer: Buffer, fileName: string): Promise<string> {
     const POMF_MIRRORS = ['https://pomf.lain.la/upload.php', 'https://quax.moe/upload.php', 'https://pomf.cat/upload.php'];
     const errorLogs: string[] = [];
 
@@ -369,7 +424,6 @@ async function uploadToPublicService(buffer: Buffer, fileName:string): Promise<s
 
     throw new Error(`Semua host file publik gagal. Log: ${errorLogs.join(', ')}`);
 }
-
 
 function addFooter(page: any, pageNum: number, font: any, width: number) {
     page.drawText(`${pageNum}.`, { x: width - MARGIN, y: 40, size: 9, font: font, color: textMuted });
