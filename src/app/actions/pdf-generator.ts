@@ -29,14 +29,9 @@ interface PageTheme {
 }
 
 function removeUnsupportedChars(text: string): string {
-  // Removes characters not supported by PDF's standard WinAnsi encoding.
-  // This prevents crashes from emojis or other special characters.
-  return text.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{FE00}-\u{FE0F}]|[\u{1F900}-\u{1F9FF}]/gu, '');
+    return text.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{FE00}-\u{FE0F}]|[\u{1F900}-\u{1F9FF}]/gu, '');
 }
 
-/**
- * Adds a background texture or color to a page.
- */
 function addPageBackground(page: PDFPage, texture?: PDFImage, fallbackColor?: ReturnType<typeof rgb>) {
     const { width, height } = page.getSize();
     if (texture) {
@@ -46,13 +41,9 @@ function addPageBackground(page: PDFPage, texture?: PDFImage, fallbackColor?: Re
     }
 }
 
-/**
- * Adds a watermark to a PDF page.
- */
 function addWatermarkToPage(page: PDFPage, watermarkImage: PDFImage) {
     const { width, height } = page.getSize();
     const watermarkDims = watermarkImage.scale(0.8);
-
     page.drawImage(watermarkImage, {
         x: width / 2 - watermarkDims.width / 2,
         y: height / 2 - watermarkDims.height / 2,
@@ -149,6 +140,7 @@ async function drawMarkdownParagraph(
     return { y: currentY, page: currentPage };
 }
 
+
 export async function generateBookPdf(bookId: string): Promise<string> {
   const { firestore } = initializeFirebase();
   if (!firestore) throw new Error('Firestore not initialized');
@@ -181,104 +173,191 @@ export async function generateBookPdf(bookId: string): Promise<string> {
 
   const fontHeadline = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const fontSerifRegular = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+  const fontSerifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
-  // --- ENHANCED COVER PAGE ---
+  // --- PROFESSIONAL COVER PAGE ---
   let coverPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   const { width, height } = coverPage.getSize();
 
-  // Background
+  // Background & Border
   coverPage.drawRectangle({ x: 0, y: 0, width, height, color: nusakarsaBackground });
-  addWatermarkToPage(coverPage, watermarkImage);
+  coverPage.drawRectangle({ x: 20, y: 20, width: width - 40, height: height - 40, borderColor: nusakarsaPrimary, borderWidth: 1.5, opacity: 0.6 });
 
-  // Bingkai dekoratif tipis
-  coverPage.drawRectangle({
-    x: 10,
-    y: 10,
-    width: width - 20,
-    height: height - 20,
-    borderColor: rgb(0.8, 0.8, 0.8),
-    borderWidth: 0.5,
-    opacity: 0.5,
-    color: undefined
+  // Header
+  const headerText = 'Nusakarsa Digital Publishing';
+  const headerWidth = fontSerifBold.widthOfTextAtSize(headerText, 14);
+  coverPage.drawText(headerText, {
+    x: width / 2 - headerWidth / 2,
+    y: height - 60,
+    font: fontSerifBold,
+    size: 14,
+    color: nusakarsaPrimary,
   });
 
-  // Judul (rata tengah)
-  const titleFontSize = 48;
-  const titleMaxWidth = width - MARGIN * 2;
-  const titleLines = wrapText(book.title, titleMaxWidth, fontHeadline, titleFontSize);
-  const titleLineHeight = titleFontSize * 1.2;
-  let titleY = height - 200;
-
-  for (const line of titleLines) {
-    const textWidth = fontHeadline.widthOfTextAtSize(line, titleFontSize);
-    const x = (width - textWidth) / 2;
-    coverPage.drawText(line, {
-      x,
-      y: titleY,
-      font: fontHeadline,
-      size: titleFontSize,
-      color: defaultTextDark
-    });
-    titleY -= titleLineHeight;
+  // Book Cover Image
+  let imageY = height - 380;
+  if (book.coverImageUrl) {
+    try {
+        const coverImageBytes = await fetch(book.coverImageUrl).then(res => {
+            if (!res.ok) throw new Error(`Failed to fetch cover image: ${res.statusText}`);
+            return res.arrayBuffer();
+        });
+        const coverImage = book.coverImageUrl.toLowerCase().includes('.png') 
+            ? await pdfDoc.embedPng(coverImageBytes) 
+            : await pdfDoc.embedJpg(coverImageBytes);
+        
+        const imgDim = coverImage.scaleToFit(width * 0.55, height * 0.38);
+        coverPage.drawImage(coverImage, {
+            x: width / 2 - imgDim.width / 2,
+            y: height - 120 - imgDim.height,
+            width: imgDim.width,
+            height: imgDim.height,
+        });
+        imageY = height - 120 - imgDim.height - 20;
+    } catch (e) {
+        console.warn("Could not embed book cover image:", e);
+    }
   }
 
-  // Garis dekoratif di bawah judul
-  const lineY = titleY + 20;
-  const lineLength = 100;
-  coverPage.drawLine({
-    start: { x: (width - lineLength) / 2, y: lineY },
-    end: { x: (width + lineLength) / 2, y: lineY },
-    thickness: 1,
-    color: nusakarsaPrimary,
-    opacity: 0.7
+  // Title & Author
+  let titleY = imageY - 40;
+  const titleLines = wrapText(book.title, width - (MARGIN * 2.5), fontHeadline, 32);
+  for (const line of titleLines) {
+      const titleWidth = fontHeadline.widthOfTextAtSize(line, 32);
+      coverPage.drawText(line, {
+        x: width/2 - titleWidth/2,
+        y: titleY,
+        font: fontHeadline,
+        size: 32,
+        color: defaultTextDark,
+      });
+      titleY -= 38; 
+  }
+  
+  titleY -= 10;
+  
+  const authorWidth = fontSerifRegular.widthOfTextAtSize(book.authorName, 16);
+  coverPage.drawText(book.authorName, {
+      x: width/2 - authorWidth/2,
+      y: titleY,
+      font: fontSerifRegular,
+      size: 16,
+      color: textMuted,
   });
 
-  // Penulis (rata tengah)
-  const authorY = lineY - 40;
-  const authorText = `Karya ${book.authorName}`;
-  const authorFontSize = 18;
-  const authorWidth = fontSerifRegular.widthOfTextAtSize(authorText, authorFontSize);
-  coverPage.drawText(authorText, {
-    x: (width - authorWidth) / 2,
-    y: authorY,
-    font: fontSerifRegular,
-    size: authorFontSize,
-    color: defaultTextDark
+  // Genre
+  if (book.genre) {
+    const genreText = book.genre.toUpperCase();
+    const genreWidth = fontSerifBold.widthOfTextAtSize(genreText, 10);
+    coverPage.drawText(genreText, {
+        x: width/2 - genreWidth/2,
+        y: MARGIN + 60,
+        font: fontSerifBold,
+        size: 10,
+        color: nusakarsaPrimary,
+        letterSpacing: 1.5,
+    });
+  }
+
+  // Footer Logo
+  const logoDims = watermarkImage.scale(0.25);
+  coverPage.drawImage(watermarkImage, {
+      x: width / 2 - logoDims.width / 2,
+      y: MARGIN - 10,
+      width: logoDims.width,
+      height: logoDims.height,
+      opacity: 0.7
   });
 
-  // Jenis buku (rata tengah)
-  const typeText = book.type === 'poem' ? 'Kumpulan Puisi' : 'Novel';
-  const typeFontSize = 14;
-  const typeWidth = fontSerifRegular.widthOfTextAtSize(typeText, typeFontSize);
-  coverPage.drawText(typeText, {
-    x: (width - typeWidth) / 2,
-    y: authorY - 30,
-    font: fontSerifRegular,
-    size: typeFontSize,
-    color: textMuted
+  // --- BACK COVER PAGE ---
+  const backCoverPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  backCoverPage.drawRectangle({ x: 0, y: 0, width, height, color: nusakarsaBackground });
+  
+  let backY = height - MARGIN * 1.5;
+
+  if (book.description) {
+      backCoverPage.drawText('Sinopsis', {
+        x: MARGIN,
+        y: backY,
+        font: fontSerifBold,
+        size: 18,
+        color: defaultTextDark,
+      });
+      backY -= 30;
+
+      const descLines = wrapText(book.description, width - (MARGIN * 2), fontSerifRegular, 11);
+      for (const line of descLines) {
+          if (backY < MARGIN * 3) break;
+          backCoverPage.drawText(line, {
+              x: MARGIN,
+              y: backY,
+              font: fontSerifRegular,
+              size: 11,
+              color: textMuted,
+              lineHeight: 16
+          });
+          backY -= 16;
+      }
+  }
+
+  // Author Bio Section
+  let authorSectionY = MARGIN * 3.5;
+  if (book.authorAvatarUrl) {
+    try {
+        const avatarBytes = await fetch(book.authorAvatarUrl).then(res => res.arrayBuffer());
+        const avatarImage = book.authorAvatarUrl.toLowerCase().includes('.png') ? await pdfDoc.embedPng(avatarBytes) : await pdfDoc.embedJpg(avatarBytes);
+        const avatarSize = 80;
+        backCoverPage.drawImage(avatarImage, {
+            x: width / 2 - avatarSize / 2,
+            y: authorSectionY,
+            width: avatarSize,
+            height: avatarSize,
+        });
+        
+        const authorNameText = book.authorName;
+        const authorNameWidth = fontSerifBold.widthOfTextAtSize(authorNameText, 14);
+        backCoverPage.drawText(authorNameText, {
+            x: width / 2 - authorNameWidth / 2,
+            y: authorSectionY - 20,
+            font: fontSerifBold,
+            size: 14,
+            color: defaultTextDark,
+        });
+        
+        const authorRoleText = 'Penulis';
+        const authorRoleWidth = fontSerifRegular.widthOfTextAtSize(authorRoleText, 10);
+        backCoverPage.drawText(authorRoleText, {
+            x: width / 2 - authorRoleWidth / 2,
+            y: authorSectionY - 35,
+            font: fontSerifRegular,
+            size: 10,
+            color: textMuted,
+        });
+
+    } catch (e) { console.warn("Could not embed author avatar:", e); }
+  }
+  
+  // Footer
+  const footerTextBack = `Diterbitkan melalui Nusakarsa © ${new Date().getFullYear()}`;
+  const footerBackWidth = fontSerifRegular.widthOfTextAtSize(footerTextBack, 9);
+  backCoverPage.drawText(footerTextBack, {
+      x: width / 2 - footerBackWidth/2,
+      y: MARGIN,
+      size: 9,
+      font: fontSerifRegular,
+      color: textMuted,
   });
 
-  // Footer (tetap)
-  const footerText = `Diterbitkan melalui Nusakarsa © ${new Date().getFullYear()}`;
-  coverPage.drawText(footerText, {
-    x: MARGIN,
-    y: MARGIN,
-    size: 9,
-    font: fontSerifRegular,
-    color: textMuted
-  });
-
-  // --- CONTENT PAGES (tidak berubah) ---
+  // --- CONTENT PAGES ---
   let contentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   addPageBackground(contentPage, pageTheme.paperTexture);
   addWatermarkToPage(contentPage, watermarkImage);
   addFooter(contentPage, pdfDoc.getPageCount(), fontSerifRegular, width);
 
   let contentY = height - MARGIN;
-  const fontSerifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
   for (const chapter of chapters) {
-    const spaceNeeded = 22 /* title */ + 20 /* margin */ + 24 /* first line estimate */;
+    const spaceNeeded = 22 /* title */ + 20 /* margin */ + 24 /* first line estimate */ ;
     if (contentY < MARGIN + spaceNeeded) {
         contentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
         addPageBackground(contentPage, pageTheme.paperTexture);
@@ -287,14 +366,10 @@ export async function generateBookPdf(bookId: string): Promise<string> {
         contentY = height - MARGIN;
     }
 
-    const chapterTitleLines = wrapText(chapter.title, width - MARGIN * 2, fontSerifBold, 22);
-    for (const line of chapterTitleLines) {
+    const chapterTitleLines = wrapText(chapter.title, width - MARGIN*2, fontSerifBold, 22);
+    for(const line of chapterTitleLines) {
         contentPage.drawText(line, {
-          x: MARGIN,
-          y: contentY,
-          size: 22,
-          font: fontSerifBold,
-          color: pageTheme.textColor
+          x: MARGIN, y: contentY, size: 22, font: fontSerifBold, color: pageTheme.textColor
         });
         contentY -= 28;
     }
@@ -391,7 +466,7 @@ async function uploadPdfToGithub(buffer: Buffer, fileName: string, folderPath: s
   return `https://raw.githubusercontent.com/${owner}/${repo}/main/${filePath}`;
 }
 
-async function uploadToPublicService(buffer: Buffer, fileName: string): Promise<string> {
+async function uploadToPublicService(buffer: Buffer, fileName:string): Promise<string> {
     const POMF_MIRRORS = ['https://pomf.lain.la/upload.php', 'https://quax.moe/upload.php', 'https://pomf.cat/upload.php'];
     const errorLogs: string[] = [];
 
@@ -424,6 +499,7 @@ async function uploadToPublicService(buffer: Buffer, fileName: string): Promise<
 
     throw new Error(`Semua host file publik gagal. Log: ${errorLogs.join(', ')}`);
 }
+
 
 function addFooter(page: any, pageNum: number, font: any, width: number) {
     page.drawText(`${pageNum}.`, { x: width - MARGIN, y: 40, size: 9, font: font, color: textMuted });
