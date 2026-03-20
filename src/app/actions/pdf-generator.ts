@@ -19,8 +19,10 @@ const textDark = rgb(0.1, 0.1, 0.1);
 const textMuted = rgb(0.4, 0.4, 0.4);
 const poemTextColor = rgb(0.2, 0.1, 0.1);
 const POEM_PAPER_TEXTURE_URL = "https://media.istockphoto.com/id/654922866/photo/old-yellowed-stained-paper-texture.jpg?s=612x612&w=0&k=20&c=uInwuGGMQMw2RKMillvZz5suVDgIcKD7yvrOmoPVt-k=";
-const WATERMARK_PATH = path.join(process.cwd(), 'https://raw.githubusercontent.com/Zombiesigma/nusakarsa-v1/public/logo/copyright.png');
+const watermarkBytes = await fetch('https://raw.githubusercontent.com/Zombiesigma/nusakarsa-v1/public/logo/copyright.png')
+  .then(res => res.arrayBuffer());
 
+const watermarkImage = await pdfDoc.embedPng(watermarkBytes);
 // --- UTILITY FUNCTIONS ---
 
 function addWatermarkToPage(page: PDFPage, watermarkImage: PDFImage, opacity: number) {
