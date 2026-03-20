@@ -36,10 +36,11 @@ const sectionVariants = {
 export default function WelcomePage() {
   useAuthRedirect();
 
-  const welcomeBg = 'https://picsum.photos/seed/welcomebg/1920/1080';
-  const featureStudioImg = 'https://picsum.photos/seed/studio/800/600';
-  const featureExploreImg = 'https://picsum.photos/seed/explore/800/600';
-  const featureCommunityImg = 'https://picsum.photos/seed/community/800/600';
+  // Gambar bertema buku, studio, dan komunitas (Unsplash)
+  const welcomeBg = 'https://images.unsplash.com/photo-1517059224940-d4af9eec41b7?q=80&w=2070&auto=format'; // meja tulis klasik
+  const featureStudioImg = 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=1973&auto=format'; // studio menulis (laptop & buku)
+  const featureExploreImg = 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=2070&auto=format'; // rak buku perpustakaan
+  const featureCommunityImg = 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=2070&auto=format'; // komunitas diskusi
 
   const features = [
       {
@@ -47,7 +48,7 @@ export default function WelcomePage() {
         title: "Studio Penulis Modern",
         description: "Editor canggih dengan auto-save, manajemen bab yang intuitif, dan kemampuan ekspor ke PDF profesional. Fokus pada cerita Anda, kami urus sisanya.",
         imageUrl: featureStudioImg,
-        imageHint: "writing desk",
+        imageHint: "writing desk with laptop",
         color: "text-emerald-500",
         bg: "bg-emerald-500/5",
       },
