@@ -2,7 +2,8 @@
 
 import { PDFDocument as PDFLib, StandardFonts, rgb, degrees } from 'pdf-lib';
 import type { PDFFont, PDFImage, PDFPage } from 'pdf-lib';
-import { adminDb } from '@/lib/firebase-admin'; // Gunakan Admin SDK
+import { initializeFirebase } from '@/firebase';
+import { collection, query, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
 import type { Book, Chapter } from '@/lib/types';
 
 const PAGE_WIDTH = 595.28; 
@@ -141,18 +142,22 @@ async function drawMarkdownParagraph(
 
 export async function generateBookPdf(bookId: string): Promise<string> {
   try {
-    // Ambil data buku dari Firestore menggunakan Admin SDK
-    const bookSnap = await adminDb.collection('books').doc(bookId).get();
-    if (!bookSnap.exists) throw new Error('Buku tidak ditemukan');
+    // Inisialisasi Firebase client SDK
+    const { firestore } = initializeFirebase();
+    if (!firestore) throw new Error('Firestore not initialized');
+
+    // Ambil data buku
+    const bookSnap = await getDoc(doc(firestore, 'books', bookId));
+    if (!bookSnap.exists()) throw new Error('Buku tidak ditemukan');
     const book = { id: bookSnap.id, ...bookSnap.data() } as Book;
 
     // Ambil chapters
-    const chaptersSnap = await adminDb
-      .collection('books')
-      .doc(bookId)
-      .collection('chapters')
-      .orderBy('order', 'asc')
-      .get();
+    const chaptersSnap = await getDocs(
+      query(
+        collection(firestore, 'books', bookId, 'chapters'),
+        orderBy('order', 'asc')
+      )
+    );
     const chapters = chaptersSnap.docs.map(d => ({ id: d.id, ...d.data() } as Chapter));
 
     const pdfDoc = await PDFLib.create();
