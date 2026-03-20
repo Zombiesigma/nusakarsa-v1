@@ -1,3 +1,5 @@
+
+
 'use server';
 
 import { PDFDocument as PDFLib, StandardFonts, rgb, degrees } from 'pdf-lib';
@@ -5,35 +7,54 @@ import type { PDFFont, PDFImage, PDFPage } from 'pdf-lib';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { initializeFirebase } from '@/firebase';
-import { collection, query, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, getDoc, where } from 'firebase/firestore';
 import type { Book, Chapter, User } from '@/lib/types';
 
-const PAGE_WIDTH = 595.28;
-const PAGE_HEIGHT = 841.89;
-const MARGIN = 72;
+const PAGE_WIDTH = 595.28; 
+const PAGE_HEIGHT = 841.89; 
+const MARGIN = 72; 
 
-// --- THEME COLORS & ASSETS ---
-const nusakarsaPrimary = rgb(0.45, 0.56, 0.22);
-const nusakarsaBackground = rgb(0.97, 0.98, 0.96);
-const textDark = rgb(0.1, 0.1, 0.1);
-const textMuted = rgb(0.4, 0.4, 0.4);
-const poemTextColor = rgb(0.2, 0.1, 0.1);
+// --- THEME ASSETS ---
 const POEM_PAPER_TEXTURE_URL = "https://media.istockphoto.com/id/654922866/photo/old-yellowed-stained-paper-texture.jpg?s=612x612&w=0&k=20&c=uInwuGGMQMw2RKMillvZz5suVDgIcKD7yvrOmoPVt-k=";
-const watermarkBytes = await fetch('https://raw.githubusercontent.com/Zombiesigma/nusakarsa-v1/public/logo/copyright.png')
-  .then(res => res.arrayBuffer());
+const WATERMARK_URL = 'https://raw.githubusercontent.com/Zombiesigma/nusakarsa-v2/main/public/logo/copyright.png';
 
-const watermarkImage = await pdfDoc.embedPng(watermarkBytes);
-// --- UTILITY FUNCTIONS ---
+// --- THEME COLORS ---
+const nusakarsaPrimary = rgb(0.45, 0.56, 0.22); 
+const nusakarsaBackground = rgb(0.97, 0.98, 0.96);
+const defaultTextDark = rgb(0.1, 0.1, 0.1);
+const textMuted = rgb(0.4, 0.4, 0.4);
+const poemTextDark = rgb(0.24, 0.15, 0.14); // #3e2723
 
-function addWatermarkToPage(page: PDFPage, watermarkImage: PDFImage, opacity: number) {
+interface PageTheme {
+    textColor: ReturnType<typeof rgb>;
+    paperTexture?: PDFImage;
+}
+
+/**
+ * Adds a background texture or color to a page.
+ */
+function addPageBackground(page: PDFPage, texture?: PDFImage, fallbackColor?: ReturnType<typeof rgb>) {
     const { width, height } = page.getSize();
-    const watermarkDims = watermarkImage.scale(0.8);
+    if (texture) {
+        page.drawImage(texture, { x: 0, y: 0, width, height });
+    } else if (fallbackColor) {
+        page.drawRectangle({ x: 0, y: 0, width, height, color: fallbackColor });
+    }
+}
+
+/**
+ * Adds a watermark to a PDF page.
+ */
+function addWatermarkToPage(page: PDFPage, watermarkImage: PDFImage) {
+    const { width, height } = page.getSize();
+    const watermarkDims = watermarkImage.scale(0.8); 
+
     page.drawImage(watermarkImage, {
         x: width / 2 - watermarkDims.width / 2,
         y: height / 2 - watermarkDims.height / 2,
         width: watermarkDims.width,
         height: watermarkDims.height,
-        opacity: opacity, // Use dynamic opacity
+        opacity: 0.05,
         rotate: degrees(-45),
     });
 }
@@ -42,106 +63,96 @@ function sanitizePath(str: string): string {
   return str.replace(/[^a-z0-9]/gi, '_').toLowerCase().trim();
 }
 
-function addPageHeader(page: PDFPage, bookTitle: string, font: PDFFont) {
-    const { width, height } = page.getSize();
-    page.drawText('NUSAKARSA DIGITAL', { x: MARGIN, y: height - 40, size: 7, font, color: rgb(0.7, 0.7, 0.7) });
-    page.drawText(bookTitle.toUpperCase(), { x: width - MARGIN - font.widthOfTextAtSize(bookTitle.toUpperCase(), 7), y: height - 40, size: 7, font, color: rgb(0.7, 0.7, 0.7) });
-}
 
-function addPageFooter(page: PDFPage, pageNum: number, font: PDFFont) {
-    const { width } = page.getSize();
-    const pageNumText = `${pageNum}`;
-    page.drawText(pageNumText, { x: width / 2 - font.widthOfTextAtSize(pageNumText, 10) / 2, y: 40, size: 10, font, color: textMuted });
-}
-
-// Draws a line of text, respecting markdown and wrapping if necessary.
-async function drawProseLine(
+async function drawMarkdownParagraph(
   page: PDFPage,
-  text: string,
+  paragraph: string,
   y: number,
-  pdfDoc: PDFLib,
-  fonts: Record<string, PDFFont>,
+  doc: PDFLib,
   watermarkImage: PDFImage,
-  pageBg: any,
-  bookTitle: string,
-  watermarkOpacity: number
+  theme: PageTheme
 ): Promise<{ y: number, page: PDFPage }> {
     let currentPage = page;
     let currentY = y;
     const contentWidth = PAGE_WIDTH - MARGIN * 2;
 
-    let baseFont = fonts.serifRegular;
+    const fontRegular = await doc.embedFont(StandardFonts.TimesRoman);
+    const fontBold = await doc.embedFont(StandardFonts.TimesRomanBold);
+    const fontItalic = await doc.embedFont(StandardFonts.TimesRomanItalic);
+
+    let text = paragraph;
+    let baseFont = fontRegular;
     let baseSize = 12;
     let xOffset = 0;
 
-    // Block-level markdown detection for the line
-    if (text.startsWith('# ')) { baseSize = 20; baseFont = fonts.serifBold; text = text.substring(2); }
-    else if (text.startsWith('## ')) { baseSize = 16; baseFont = fonts.serifBold; text = text.substring(3); }
-    else if (text.startsWith('### ')) { baseSize = 14; baseFont = fonts.serifBold; text = text.substring(4); }
-    else if (text.startsWith('> ')) {
-        baseFont = fonts.serifItalic;
-        text = text.substring(2);
-        xOffset = 20;
-        currentPage.drawRectangle({ x: MARGIN, y: currentY - baseSize * 1.2, width: 3, height: baseSize * 1.4, color: nusakarsaPrimary, opacity: 0.4 });
-    }
+    if (text.startsWith('# ')) { baseSize = 20; baseFont = fontBold; text = text.substring(2); }
+    else if (text.startsWith('## ')) { baseSize = 16; baseFont = fontBold; text = text.substring(3); }
+    else if (text.startsWith('### ')) { baseSize = 14; baseFont = fontBold; text = text.substring(4); }
+    else if (text.startsWith('> ')) { baseFont = fontItalic; text = text.substring(2); xOffset = 20; }
     
-    const lineHeight = baseSize * 1.5;
+    const lineHeight = baseSize * 1.4;
     const tokens = text.split(/(\*\*.*?\*\*|\*.*?\*)/g).filter(Boolean);
     let currentX = MARGIN + xOffset;
-
-    const checkPageBreak = async () => {
-        if (currentY < MARGIN + lineHeight) {
-            currentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-            if (pageBg.texture) currentPage.drawImage(pageBg.texture, {x:0,y:0,width:PAGE_WIDTH,height:PAGE_HEIGHT}); else currentPage.drawRectangle({x:0,y:0,width:PAGE_WIDTH,height:PAGE_HEIGHT, color: pageBg.color});
-            addWatermarkToPage(currentPage, watermarkImage, watermarkOpacity);
-            addPageHeader(currentPage, bookTitle, fonts.regular);
-            addPageFooter(currentPage, pdfDoc.getPageCount(), fonts.regular);
-            currentY = PAGE_HEIGHT - MARGIN - 40;
-            currentX = MARGIN + xOffset;
-        }
-    }
 
     for (const token of tokens) {
         let font = baseFont;
         let content = token;
 
-        if (token.startsWith('**') && token.endsWith('**')) { font = fonts.serifBold; content = token.slice(2, -2); }
-        else if (token.startsWith('*') && token.endsWith('*')) { font = fonts.serifItalic; content = token.slice(1, -1); }
+        if (token.startsWith('**') && token.endsWith('**')) { font = fontBold; content = token.slice(2, -2); }
+        else if (token.startsWith('*') && token.endsWith('*')) { font = fontItalic; content = token.slice(1, -1); }
 
-        const words = content.split(' ');
+        const words = content.replace(/\n/g, ' \n ').split(' ');
         for (const word of words) {
+             if (word === '\n') {
+                currentY -= lineHeight;
+                currentX = MARGIN + xOffset;
+                if (currentY < MARGIN) {
+                    currentPage = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+                    addPageBackground(currentPage, theme.paperTexture);
+                    addWatermarkToPage(currentPage, watermarkImage);
+                    addFooter(currentPage, doc.getPageCount(), fontRegular, PAGE_WIDTH);
+                    currentY = PAGE_HEIGHT - MARGIN;
+                }
+                continue;
+            }
+            
             if (!word) continue;
 
             const wordWidth = font.widthOfTextAtSize(word, baseSize);
-            if (currentX + wordWidth > PAGE_WIDTH - MARGIN) {
+            
+            if (currentX + wordWidth > PAGE_WIDTH - MARGIN && currentX > MARGIN + xOffset) {
                 currentY -= lineHeight;
                 currentX = MARGIN + xOffset;
             }
 
-            await checkPageBreak();
+            if (currentY < MARGIN) {
+                currentPage = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+                addPageBackground(currentPage, theme.paperTexture);
+                addWatermarkToPage(currentPage, watermarkImage);
+                addFooter(currentPage, doc.getPageCount(), fontRegular, PAGE_WIDTH);
+                currentY = PAGE_HEIGHT - MARGIN;
+                currentX = MARGIN + xOffset;
+            }
 
-            currentPage.drawText(word, { x: currentX, y: currentY, font, size: baseSize, color: textDark });
-            currentX += wordWidth + font.widthOfTextAtSize(' ', baseSize);
+            currentPage.drawText(word + ' ', {
+                x: currentX, y: currentY, font, size: baseSize, color: theme.textColor,
+            });
+            currentX += font.widthOfTextAtSize(word + ' ', baseSize);
         }
     }
     
-    currentY -= lineHeight; // Move to the next line after the whole line is drawn
+    currentY -= lineHeight;
     return { y: currentY, page: currentPage };
 }
+
 
 export async function generateBookPdf(bookId: string): Promise<string> {
   const { firestore } = initializeFirebase();
   if (!firestore) throw new Error('Firestore not initialized');
 
-  // --- DATA FETCHING ---
-  const bookRef = doc(firestore, 'books', bookId);
-  const bookSnap = await getDoc(bookRef);
+  const bookSnap = await getDoc(doc(firestore, 'books', bookId));
   if (!bookSnap.exists()) throw new Error('Book not found');
   const book = { id: bookSnap.id, ...bookSnap.data() } as Book;
-
-  const authorUserRef = doc(firestore, 'users', book.authorId);
-  const authorUserSnap = await getDoc(authorUserRef);
-  const authorProfile = authorUserSnap.exists() ? authorUserSnap.data() as User : null;
 
   const chaptersQuery = query(collection(firestore, 'books', bookId, 'chapters'), orderBy('order', 'asc'));
   const chaptersSnap = await getDocs(chaptersQuery);
@@ -149,171 +160,200 @@ export async function generateBookPdf(bookId: string): Promise<string> {
 
   const pdfDoc = await PDFLib.create();
   
-  // --- ASSET & FONT LOADING ---
-  const watermarkBytes = await fs.readFile(WATERMARK_PATH);
+  // --- ASSET FETCHING ---
+  const watermarkBytes = await fetch(WATERMARK_URL).then(res => res.arrayBuffer());
   const watermarkImage = await pdfDoc.embedPng(watermarkBytes);
 
   const isPoem = book.type === 'poem';
-  const watermarkOpacity = isPoem ? 0.12 : 0.04;
-
-  const pageBg = { color: nusakarsaBackground, texture: null as PDFImage | null };
+  let pageTheme: PageTheme = { textColor: defaultTextDark };
   if (isPoem) {
       try {
-          const paperBytes = await fetch(POEM_PAPER_TEXTURE_URL).then(res => res.arrayBuffer());
-          pageBg.texture = await pdfDoc.embedJpg(paperBytes);
-      } catch (e) { console.warn("Could not fetch poem paper texture."); }
+        const paperBytes = await fetch(POEM_PAPER_TEXTURE_URL).then(res => res.arrayBuffer());
+        pageTheme.paperTexture = await pdfDoc.embedJpg(paperBytes);
+        pageTheme.textColor = poemTextDark;
+      } catch(e) { console.warn("Failed to embed poem paper texture.", e); }
   }
 
-  const fonts = {
-      bold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
-      regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
-      italic: await pdfDoc.embedFont(StandardFonts.HelveticaOblique),
-      serifBold: await pdfDoc.embedFont(StandardFonts.TimesRomanBold),
-      serifRegular: await pdfDoc.embedFont(StandardFonts.TimesRoman),
-      serifItalic: await pdfDoc.embedFont(StandardFonts.TimesRomanItalic),
-  }
+  const fontHeadline = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+  const fontSerifRegular = await pdfDoc.embedFont(StandardFonts.TimesRoman);
 
-  // --- COVER PAGE ---
+  // --- CINEMATIC COVER PAGE ---
   let coverPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   const { width, height } = coverPage.getSize();
-  
+
   coverPage.drawRectangle({ x: 0, y: 0, width, height, color: nusakarsaBackground });
-  addWatermarkToPage(coverPage, watermarkImage, watermarkOpacity);
-  coverPage.drawRectangle({ x: 0, y: height - 20, width, height: 20, color: nusakarsaPrimary });
+  addWatermarkToPage(coverPage, watermarkImage);
 
-  coverPage.drawText(book.title, { x: MARGIN, y: height - 200, size: 40, font: fonts.bold, color: textDark, maxWidth: width - (MARGIN * 2), lineHeight: 48 });
-  coverPage.drawText(book.genre.toUpperCase(), { x: MARGIN, y: height - 230, size: 10, font: fonts.bold, color: nusakarsaPrimary, characterSpacing: 2 });
-  coverPage.drawText('Oleh:', { x: MARGIN, y: height - 300, size: 12, font: fonts.italic, color: textMuted });
-  coverPage.drawText(book.authorName, { x: MARGIN, y: height - 325, size: 24, font: fonts.serifBold, color: textDark });
 
-  const synopsisYStart = height - 400;
-  coverPage.drawText("Sinopsis", { x: MARGIN, y: synopsisYStart, size: 12, font: fonts.bold, color: textDark });
-  
-  const synopsisLines = wrapText(book.synopsis, width - (MARGIN * 2), fonts.serifRegular, 11);
-  let currentY_cover = synopsisYStart - 20;
-  for (const line of synopsisLines) {
-      if (currentY_cover < 150) break;
-      coverPage.drawText(line, { x: MARGIN, y: currentY_cover, size: 11, font: fonts.serifItalic, color: textMuted, lineHeight: 15 });
-      currentY_cover -= 15;
+  const titleLines = wrapText(book.title, width - (MARGIN * 2), fontHeadline, 42);
+  let currentY = height - 220;
+  for (const line of titleLines) {
+      coverPage.drawText(line, { 
+        x: MARGIN, y: currentY, font: fontHeadline, size: 42, color: defaultTextDark, 
+        maxWidth: width - MARGIN * 2, lineHeight: 50, 
+        wordBreaks: [' '] 
+      });
+      currentY -= 50;
   }
-  
-  const footerY = 80;
-  coverPage.drawLine({ start: { x: MARGIN, y: footerY + 20 }, end: { x: width - MARGIN, y: footerY + 20 }, thickness: 0.5, color: nusakarsaPrimary, opacity: 0.5 });
 
-  if (authorProfile) {
-    const contactText = [authorProfile.email, authorProfile.domicile].filter(Boolean).join(' • ');
-    coverPage.drawText(contactText, { x: MARGIN, y: footerY, size: 9, font: fonts.regular, color: textMuted });
-  }
-  
-  const footerright = `Diterbitkan melalui Nusakarsa © ${new Date().getFullYear()}`;
-  coverPage.drawText(footerCopyright, { x: width - MARGIN - fonts.regular.widthOfTextAtSize(footerCopyright, 9), y: footerY, size: 9, font: fonts.regular, color: textMuted });
+  coverPage.drawLine({ start: { x: MARGIN, y: currentY }, end: { x: width - MARGIN, y: currentY }, thickness: 0.5, color: defaultTextDark, opacity: 0.5 });
+  currentY -= 30;
+
+  coverPage.drawText(`Sebuah Mahakarya oleh ${book.authorName}`, { 
+      x: MARGIN, y: currentY, font: fontSerifRegular, size: 16, color: textMuted
+  });
+
+  const footerText = `Diterbitkan melalui Nusakarsa © ${new Date().getFullYear()}`;
+  coverPage.drawText(footerText, {
+      x: MARGIN, y: MARGIN, size: 9, font: fontSerifRegular, color: textMuted
+  });
 
   // --- CONTENT PAGES ---
-  let contentPage: PDFPage | null = null;
+  let contentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  addPageBackground(contentPage, pageTheme.paperTexture);
+  addWatermarkToPage(contentPage, watermarkImage);
+  addFooter(contentPage, pdfDoc.getPageCount(), fontSerifRegular, width);
+
+  let contentY = height - MARGIN;
+  const fontSerifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
   for (const chapter of chapters) {
-    contentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-    if (pageBg.texture) contentPage.drawImage(pageBg.texture, {x:0,y:0,width,height}); else contentPage.drawRectangle({x:0,y:0,width,height, color: pageBg.color});
-    addWatermarkToPage(contentPage, watermarkImage, watermarkOpacity);
-    addPageHeader(contentPage, book.title, fonts.regular);
-    addPageFooter(contentPage, pdfDoc.getPageCount(), fonts.regular);
-
-    let currentY = height - 120;
-
-    const chapterTitleX = isPoem ? (width - fonts.serifBold.widthOfTextAtSize(chapter.title.toUpperCase(), 16)) / 2 : MARGIN;
-    contentPage.drawText(isPoem ? chapter.title.toUpperCase() : chapter.title, {
-      x: chapterTitleX, y: currentY, size: isPoem ? 16 : 22, font: fonts.serifBold, color: textDark,
-    });
-    currentY -= (isPoem ? 16 : 22) * 2.5;
-
-    if (isPoem) {
-      const lines = chapter.content.split('\n');
-      for (const line of lines) {
-          if (currentY < MARGIN) {
-              contentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-              if (pageBg.texture) contentPage.drawImage(pageBg.texture, {x:0,y:0,width,height}); else contentPage.drawRectangle({x:0,y:0,width,height, color: pageBg.color});
-              addWatermarkToPage(contentPage, watermarkImage, watermarkOpacity);
-              addPageHeader(contentPage, book.title, fonts.regular);
-              addPageFooter(contentPage, pdfDoc.getPageCount(), fonts.regular);
-              currentY = height - MARGIN - 40;
-          }
-          
-          if (!line.trim()) { currentY -= 14 * 0.7; continue; }
-
-          const font = fonts.serifItalic;
-          const size = 14;
-          const textWidth = font.widthOfTextAtSize(line, size);
-          contentPage.drawText(line, {
-              x: (width - textWidth) / 2,
-              y: currentY,
-              font,
-              size,
-              color: poemTextColor
-          });
-          currentY -= size * 1.6;
-      }
-    } else {
-        // --- NEW, CORRECTED LOGIC AS PER USER'S INSTRUCTIONS ---
-        const lines = chapter.content.split('\n');
-        for (const line of lines) {
-            // If the line is empty, it's a paragraph break. Add vertical space.
-            if (!line.trim()) {
-                currentY -= 12; // Add spacing for empty lines
-                continue;
-            }
-            // Process the line, which will be word-wrapped if it's too long.
-            const { y: newY, page: newPage } = await drawProseLine(contentPage, line, currentY, pdfDoc, fonts, watermarkImage, pageBg, book.title, watermarkOpacity);
-            currentY = newY;
-            contentPage = newPage;
-        }
+    const spaceNeeded = 22 /* title */ + 20 /* margin */ + 24 /* first line estimate */ ;
+    if (contentY < MARGIN + spaceNeeded) {
+        contentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+        addPageBackground(contentPage, pageTheme.paperTexture);
+        addWatermarkToPage(contentPage, watermarkImage);
+        addFooter(contentPage, pdfDoc.getPageCount(), fontSerifRegular, width);
+        contentY = height - MARGIN;
     }
+
+    const chapterTitleLines = wrapText(chapter.title, width - MARGIN*2, fontSerifBold, 22);
+    for(const line of chapterTitleLines) {
+        contentPage.drawText(line, {
+          x: MARGIN, y: contentY, size: 22, font: fontSerifBold, color: pageTheme.textColor
+        });
+        contentY -= 28;
+    }
+    
+    contentY -= 30;
+
+    const paragraphs = chapter.content.replace(/\r\n/g, '\n').split(/\n\s*\n/);
+    for (const para of paragraphs) {
+      if (!para.trim()) continue;
+      
+      const { y: newY, page: newPage } = await drawMarkdownParagraph(contentPage, para, contentY, pdfDoc, watermarkImage, pageTheme);
+      contentY = newY;
+      contentPage = newPage;
+      contentY -= 12; // Space between paragraphs
+
+      if (contentY < MARGIN) {
+        contentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+        addPageBackground(contentPage, pageTheme.paperTexture);
+        addWatermarkToPage(contentPage, watermarkImage);
+        addFooter(contentPage, pdfDoc.getPageCount(), fontSerifRegular, width);
+        contentY = height - MARGIN;
+      }
+    }
+    contentY -= 20; // Extra space after chapter
   }
 
   const pdfBytes = await pdfDoc.save();
   const pdfBuffer = Buffer.from(pdfBytes);
   const safeFileName = `${sanitizePath(book.title)}.pdf`;
   const typeFolder = isPoem ? 'puisi' : 'buku';
-  const folderPath = `pdf/${typeFolder}/${sanitizePath(book.title)}`;
+  const folderPath = `${typeFolder}/${sanitizePath(book.title)}`;
 
-  return await uploadPdf(pdfBuffer, `${Date.now()}-${safeFileName}`, folderPath);
+  return await uploadPdf(pdfBuffer, safeFileName, folderPath);
 }
 
-// --- UPLOAD FUNCTIONS ---
 async function uploadPdf(buffer: Buffer, fileName: string, folderPath: string): Promise<string> {
-  const publicDir = path.join(process.cwd(), 'public', 'uploads');
-  const finalFolderPath = path.join(publicDir, folderPath);
-  
-  try {
-    await fs.mkdir(finalFolderPath, { recursive: true });
-    const filePath = path.join(finalFolderPath, fileName);
-    await fs.writeFile(filePath, buffer);
-    const fileUrl = `/uploads/${folderPath}/${fileName}`;
-    console.log(`[PDF Generator] PDF saved to: ${fileUrl}`);
-    return fileUrl;
-  } catch (error) {
-    console.error("[PDF Generator] Failed to save PDF locally:", error);
-    throw new Error("Gagal menyimpan file PDF secara lokal.");
+  const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+  const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER;
+  const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME;
+
+  if (GITHUB_TOKEN && GITHUB_REPO_OWNER && GITHUB_REPO_NAME) {
+    try {
+      return await uploadPdfToGithub(buffer, fileName, folderPath, GITHUB_TOKEN, GITHUB_REPO_OWNER, GITHUB_REPO_NAME);
+    } catch (e) {
+      console.warn("[PDF Generator] GitHub upload failed, falling back...");
+    }
   }
+
+  try {
+    return await uploadToPublicService(buffer, fileName);
+  } catch (e) {
+    console.error("[PDF Generator] All upload methods failed:", e);
+    throw new Error("Gagal mengunggah file PDF.");
+  }
+}
+
+async function uploadPdfToGithub(buffer: Buffer, fileName: string, folderPath: string, token: string, owner: string, repo: string): Promise<string> {
+  const base64Content = buffer.toString('base64');
+  const timestamp = Date.now();
+  const filePath = `${folderPath}/${timestamp}-${fileName}`;
+
+  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'Nusakarsa-App',
+    },
+    body: JSON.stringify({
+      message: `Automatic PDF Generation for ${fileName}`,
+      content: base64Content,
+      branch: 'main'
+    }),
+    signal: AbortSignal.timeout(110000),
+  });
+
+  if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'GitHub Error');
+  }
+
+  return `https://raw.githubusercontent.com/${owner}/${repo}/main/${filePath}`;
+}
+
+async function uploadToPublicService(buffer: Buffer, fileName: string): Promise<string> {
+  const POMF_MIRRORS = ['https://pomf.lain.la/upload.php', 'https://quax.moe/upload.php', 'https://pomf.cat/upload.php'];
+  for (const mirror of POMF_MIRRORS) {
+    try {
+      const formData = new FormData();
+      const blob = new Blob([buffer], { type: 'application/pdf' });
+      formData.append('files[]', blob, fileName);
+      const response = await fetch(mirror, { method: 'POST', body: formData, signal: AbortSignal.timeout(30000) });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.files && data.files[0]) return data.files[0].url;
+      }
+    } catch (err) { continue; }
+  }
+  throw new Error("Public storage mirrors failed.");
+}
+
+function addFooter(page: any, pageNum: number, font: any, width: number) {
+    page.drawText(`${pageNum}.`, { x: width - MARGIN, y: 40, size: 9, font: font, color: textMuted });
 }
 
 function wrapText(text: string, maxWidth: number, font: any, fontSize: number): string[] {
   if (!text) return [""];
-  const lines: string[] = [];
   const paragraphs = text.split('\n');
+  const allLines: string[] = [];
   for (const para of paragraphs) {
-      const words = para.split(' ');
-      let currentLine = '';
-      for (const word of words) {
-          const testLine = currentLine ? `${currentLine} ${word}` : word;
-          const testWidth = font.widthOfTextAtSize(testLine, fontSize);
-          if (testWidth > maxWidth && currentLine !== '') {
-              lines.push(currentLine);
-              currentLine = word;
-          } else {
-              currentLine = testLine;
-          }
-      }
-      lines.push(currentLine);
+    if (!para.trim()) { allLines.push(""); continue; }
+    const words = para.split(/\s+/);
+    let currentLine = '';
+    for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+        if (testWidth > maxWidth) {
+            allLines.push(currentLine);
+            currentLine = word;
+        } else { currentLine = testLine; }
+    }
+    allLines.push(currentLine);
   }
-  return lines;
+  return allLines;
 }
