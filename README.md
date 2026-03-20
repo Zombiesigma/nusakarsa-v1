@@ -28,13 +28,13 @@
 
 ---
 
-## 🌟 Tentang Nusakarsa
+## Tentang Nusakarsa
 
 Nusakarsa adalah platform serbaguna yang menghubungkan penulis dengan pembaca dalam sebuah ekosistem yang dinamis. Dibangun dengan teknologi web terbaru, aplikasi ini memberikan pengalaman pengguna yang cepat, responsif, dan imersif, baik untuk membaca maupun berkarya.
 
-## ✨ Fitur Unggulan
+## Fitur Unggulan
 
-### 📖 Untuk Pembaca
+### Untuk Pembaca
 
 *   **Eksplorasi Karya:** Jelajahi ribuan novel, dan puisi dengan sistem pencarian dan filter yang canggih.
 *   **Pengalaman Membaca Imersif:** Nikmati setiap karya dengan antarmuka bebas gangguan. Atur tema (terang, sepia, kertas), ukuran font, dan jenis huruf sesuai selera.
@@ -42,7 +42,7 @@ Nusakarsa adalah platform serbaguna yang menghubungkan penulis dengan pembaca da
 *   **Pustaka Pribadi:** Simpan karya favorit Anda untuk diakses kembali kapan saja, membangun koleksi bacaan digital Anda sendiri.
 *   **Interaksi Komunitas:** Berikan apresiasi melalui suka, tinggalkan ulasan yang membangun, dan berdiskusi langsung dengan penulis serta pembaca lain.
 
-### ✍️ Untuk Penulis
+### Untuk Penulis
 
 *   **Studio Penulis Modern:** Ruang kerja terpusat dengan editor canggih yang mendukung *Markdown*, manajemen bab yang intuitif, dan fitur *auto-save* untuk menjaga setiap ide Anda tetap aman.
 *   **Impor Naskah Cerdas:** Unggah draf dari format `.docx`, `.pdf`, atau `.txt`. Sistem kami akan secara otomatis mengekstrak teksnya menjadi draf bab pertama Anda.
@@ -50,13 +50,13 @@ Nusakarsa adalah platform serbaguna yang menghubungkan penulis dengan pembaca da
 *   **Alur Publikasi Profesional:** Kendalikan status karya Anda, mulai dari draf, kirim untuk moderasi oleh tim kurasi, hingga terbit secara resmi di platform.
 *   **Ekspor ke PDF Otomatis:** Setiap karya yang diterbitkan akan secara otomatis dibuatkan versi PDF profesional yang dapat diunduh oleh pembaca.
 
-### 🌐 Komunitas & Profil
+### Komunitas & Profil
 
 *   **Profil Pujangga Profesional:** Bangun identitas digital Anda dengan halaman profil yang menampilkan bio, semua karya yang telah diterbitkan, dan statistik interaksi.
 *   **Sistem Ikuti & Notifikasi:** Tetap terhubung dengan penulis favorit dan dapatkan kabar terbaru setiap kali ada karya baru atau interaksi penting.
 *   **Perlindungan Konten:** Aplikasi dilengkapi sistem proteksi untuk mencegah penyalinan teks dan pengunduhan gambar secara tidak sah, melindungi hak cipta Anda.
 
-## 🛠️ Teknologi yang Digunakan
+## Teknologi yang Digunakan
 
 *   **Framework:** Next.js 15 (App Router) & React 19
 *   **Bahasa:** TypeScript
@@ -64,7 +64,7 @@ Nusakarsa adalah platform serbaguna yang menghubungkan penulis dengan pembaca da
 *   **Styling:** Tailwind CSS & ShadCN UI
 *   **Deployment:** Firebase App Hosting
 
-## 🚀 Memulai
+## Memulai
 
 Untuk menjalankan aplikasi ini di lingkungan pengembangan lokal Anda, ikuti langkah-langkah di bawah ini.
 
@@ -100,14 +100,14 @@ npm run dev
 
 Buka [http://localhost:3000](http://localhost:3000) di browser Anda untuk melihat aplikasi berjalan.
 
-## 📜 Skrip yang Tersedia
+## Skrip yang Tersedia
 
 *   `npm run dev`: Menjalankan aplikasi dalam mode pengembangan.
 *   `npm run build`: Membuat aplikasi untuk produksi.
 *   `npm run start`: Menjalankan aplikasi yang telah di-build untuk produksi.
 *   `npm run lint`: Menjalankan linter untuk memeriksa masalah dalam kode.
 
-## 🤝 Berkontribusi
+## Berkontribusi
 
 Kami sangat terbuka terhadap kontribusi! Ikuti langkah berikut:
 
@@ -117,13 +117,13 @@ Kami sangat terbuka terhadap kontribusi! Ikuti langkah berikut:
 4.  *Push* ke *branch*: `git push origin fitur-keren`.
 5.  Buka **Pull Request** dan jelaskan perubahan yang Anda buat.
 
-## 📬 Kontak
+## Kontak
 
 Punya pertanyaan atau masukan? Hubungi kami melalui:
 *   **Email:** `tim@nusakarsa.id`
 *   **GitHub Issues:** [Buka Isu Baru](https://github.com/zombiesigma/nusakarsa/issues)
 
-## 📝 Lisensi
+## Lisensi
 
 Proyek ini didistribusikan di bawah **Lisensi MIT**.
 
