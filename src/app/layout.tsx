@@ -9,7 +9,7 @@ import { ProtectionProvider } from '@/components/ProtectionProvider';
 import { cn } from '@/lib/utils';
 
 const productionUrl = 'https://www.nusakarsa.my.id/';
-const brandIcon = 'https://raw.githubusercontent.com/Zombiesigma/nusakarsa-assets/main/download.webp';
+const brandIcon = 'https://raw.githubusercontent.com/Zombiesigma/nusakarsa-assets/main/download.webp?v=1';
 
 const inter = Inter({
   subsets: ['latin'],
