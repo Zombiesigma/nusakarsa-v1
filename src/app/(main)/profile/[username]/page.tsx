@@ -1,9 +1,8 @@
 'use client';
 
-import { notFound, useParams, useRouter } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import dynamic from 'next/dynamic';
 import { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useUser, useCollection, useDoc } from '@/firebase';
 import {
@@ -20,6 +19,7 @@ import {
 import type { User, Book, Follow } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { BookCard } from '@/components/BookCard';
 import {
   UserPlus,
   Edit,
@@ -32,24 +32,28 @@ import {
   Calendar,
   Layers,
   Award,
+  Heart,
+  Star,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
 import { FollowsSheet } from '@/components/profile/FollowsSheet';
-import { LazyMotion, domAnimation, m as motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
-// Optimasi: dynamic import BookCard agar halaman profil lebih cepat
-const BookCard = dynamic(() => import('@/components/BookCard'), {
-  loading: () => <BookCardSkeleton />,
-});
-
-// Skeleton yang menyerupai bentuk BookCard (aspek 2/3, rounded)
-function BookCardSkeleton() {
-  return (
-    <div className="aspect-[2/3] bg-muted animate-pulse rounded-[2rem]" />
-  );
-}
+// Skeleton shimmer untuk loading buku
+const BookCardSkeleton = () => (
+  <div className="aspect-[2/3] rounded-[2rem] bg-muted/50 overflow-hidden relative">
+    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent bg-[length:200%_100%] animate-shimmer" />
+    <div className="absolute bottom-0 left-0 right-0 p-4 space-y-2">
+      <div className="h-3 w-3/4 bg-muted-foreground/20 rounded-full" />
+      <div className="h-3 w-1/2 bg-muted-foreground/20 rounded-full" />
+      <div className="flex gap-2 mt-2">
+        <Heart className="h-4 w-4 text-muted-foreground/30" />
+        <Star className="h-4 w-4 text-muted-foreground/30" />
+      </div>
+    </div>
+  </div>
+);
 
 const statVariants = {
   hidden: { opacity: 0, y: 10 },
@@ -61,11 +65,7 @@ const sectionVariants = {
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: {
-      delay: i * 0.1,
-      duration: 0.5,
-      ease: 'easeOut',
-    },
+    transition: { delay: i * 0.1, duration: 0.5, ease: 'easeOut' },
   }),
 };
 
@@ -118,7 +118,6 @@ export default function ProfilePage() {
     setIsFollowing(!!followingDoc);
   }, [followingDoc]);
 
-  // Query buku – pastikan composite index (authorId, status, createdAt) sudah ada di Firestore
   const publishedBooksQuery = useMemo(
     () =>
       firestore && user
@@ -135,11 +134,11 @@ export default function ProfilePage() {
     useCollection<Book>(publishedBooksQuery);
 
   const handleFollow = async () => {
-    if (!firestore || !currentUser || !user || isOwnProfile) return;
+    if (!firestore || !currentUser || !user || isOwnProfile || isTogglingFollow)
+      return;
 
-    const prevFollowing = isFollowing;
-    setIsFollowing(!prevFollowing); // Optimistic UI
     setIsTogglingFollow(true);
+    const prevFollowing = isFollowing;
 
     try {
       const batch = writeBatch(firestore);
@@ -159,7 +158,6 @@ export default function ProfilePage() {
       );
 
       if (prevFollowing) {
-        // Unfollow
         batch.delete(followRef);
         batch.delete(followerRef);
         batch.update(doc(firestore, 'users', currentUser.uid), {
@@ -169,7 +167,6 @@ export default function ProfilePage() {
           followers: increment(-1),
         });
       } else {
-        // Follow
         batch.set(followRef, {
           userId: currentUser.uid,
           followedAt: serverTimestamp(),
@@ -191,9 +188,7 @@ export default function ProfilePage() {
         batch.set(notifRef, {
           type: 'follow',
           text: `${currentUser.displayName ?? 'Pengguna'} mulai mengikuti Anda.`,
-          link: `/profile/${(currentUser.displayName ?? '')
-            .toLowerCase()
-            .replace(/\s+/g, '')}`,
+          link: `/profile/${currentUser.username ?? ''}`,
           actor: {
             uid: currentUser.uid,
             displayName: currentUser.displayName ?? 'Pengguna',
@@ -206,20 +201,16 @@ export default function ProfilePage() {
 
       await batch.commit();
       toast({
-        title: prevFollowing
-          ? 'Berhenti mengikuti'
-          : 'Mulai mengikuti',
+        title: prevFollowing ? 'Berhenti mengikuti' : 'Mulai mengikuti',
       });
     } catch (e) {
-      // Rollback jika gagal
-      setIsFollowing(prevFollowing);
       toast({ variant: 'destructive', title: 'Gagal memperbarui status ikuti' });
     } finally {
       setIsTogglingFollow(false);
     }
   };
 
-  // Pastikan data benar-benar final sebelum memutuskan 404
+  // Tampilkan loading sebelum memutuskan notFound
   if (isUserLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -231,273 +222,260 @@ export default function ProfilePage() {
     );
   }
 
-  if (!user) {
+  // Setelah loading selesai dan tidak ada user, baru 404
+  if (!isUserLoading && users?.length === 0) {
     notFound();
   }
 
+  // Fallback jika user undefined (seharusnya tidak terjadi karena sudah dicek)
+  if (!user) {
+    return null;
+  }
+
   return (
-    <LazyMotion features={domAnimation}>
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        className="max-w-7xl mx-auto pb-32 space-y-12 px-4 md:px-10"
-      >
-        <FollowsSheet
-          userId={user.uid}
-          type={sheetState.type}
-          open={sheetState.open}
-          onOpenChange={(o) =>
-            setSheetState((prev) => ({ ...prev, open: o }))
-          }
-        />
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      className="max-w-7xl mx-auto pb-32 space-y-12 px-4 md:px-10"
+    >
+      <FollowsSheet
+        userId={user.uid}
+        type={sheetState.type}
+        open={sheetState.open}
+        onOpenChange={(o) =>
+          setSheetState((prev) => ({ ...prev, open: o }))
+        }
+      />
 
-        <motion.div custom={0} variants={sectionVariants} className="relative">
-          {/* Banner area */}
-          <div className="h-48 md:h-80 w-full rounded-[2.5rem] md:rounded-[4rem] bg-card/20 relative overflow-hidden border border-primary/10 shadow-2xl shadow-primary/5">
-            <div className="absolute inset-0 bg-gradient-to-br from-background via-primary/5 to-accent/5 opacity-80" />
-            <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-accent/5 blur-[120px] rounded-full" />
-            <div className="absolute -top-24 -left-24 w-64 h-64 bg-primary/5 blur-[100px] rounded-full" />
-          </div>
+      <motion.div custom={0} variants={sectionVariants} className="relative">
+        <div className="h-48 md:h-80 w-full rounded-[2.5rem] md:rounded-[4rem] bg-card/20 relative overflow-hidden border border-primary/10 shadow-2xl shadow-primary/5">
+          <div className="absolute inset-0 bg-gradient-to-br from-background via-primary/5 to-accent/5 opacity-80" />
+          <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-accent/5 blur-[120px] rounded-full" />
+          <div className="absolute -top-24 -left-24 w-64 h-64 bg-primary/5 blur-[100px] rounded-full" />
+        </div>
 
-          <div className="flex flex-col lg:flex-row gap-10 md:gap-16 px-6 md:px-16 -mt-16 md:-mt-24 relative z-10">
-            {/* Sidebar profil */}
-            <motion.aside
-              custom={1}
-              variants={sectionVariants}
-              className="w-full lg:w-[320px] shrink-0 space-y-8"
-            >
-              <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
-                {/* Avatar dengan fallback */}
-                <div className="relative mb-6">
-                  <div className="p-1.5 rounded-full bg-background ring-8 ring-background shadow-2xl relative group">
-                    <div className="absolute -inset-1 rounded-full bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-pulse" />
-                    <Avatar
-                      className="h-32 w-32 md:h-48 md:w-48 border-4 border-background shadow-inner cursor-pointer"
-                      onClick={() => setIsPhotoPreviewOpen(true)}
-                    >
-                      <AvatarImage
-                        src={user.photoURL || '/avatar.png'}
-                        className="object-cover"
-                      />
-                      <AvatarFallback className="bg-primary/5 text-primary text-6xl font-black">
-                        {user.displayName[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-                  {(user.role === 'penulis' || user.role === 'admin') && (
-                    <div className="absolute -bottom-2 -right-2 bg-primary text-primary-foreground p-2.5 rounded-full shadow-2xl shadow-primary/40 ring-4 ring-background">
-                      <Award className="h-6 w-6" />
-                    </div>
-                  )}
+        <div className="flex flex-col lg:flex-row gap-10 md:gap-16 px-6 md:px-16 -mt-16 md:-mt-24 relative z-10">
+          <motion.aside
+            custom={1}
+            variants={sectionVariants}
+            className="w-full lg:w-[320px] shrink-0 space-y-8"
+          >
+            <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
+              <div className="relative mb-6">
+                <div className="p-1.5 rounded-full bg-background ring-8 ring-background shadow-2xl relative group">
+                  <div className="absolute -inset-1 rounded-full bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-pulse" />
+                  <Avatar
+                    className="h-32 w-32 md:h-48 md:w-48 border-4 border-background shadow-inner cursor-pointer"
+                    onClick={() => setIsPhotoPreviewOpen(true)}
+                  >
+                    <AvatarImage
+                      src={user.photoURL || '/avatar.png'}
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="bg-primary/5 text-primary text-6xl font-black">
+                      {user.displayName?.[0] || '?'}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
-
-                <div className="space-y-2">
-                  <h1 className="text-3xl md:text-5xl font-headline font-black tracking-tight leading-tight text-foreground">
-                    {user.displayName}
-                  </h1>
-                  <div className="flex items-center justify-center lg:justify-start gap-2">
-                    <p className="text-sm font-mono text-muted-foreground">
-                      @{user.username}
-                    </p>
+                {(user.role === 'penulis' || user.role === 'admin') && (
+                  <div className="absolute -bottom-2 -right-2 bg-primary text-primary-foreground p-2.5 rounded-full shadow-2xl shadow-primary/40 ring-4 ring-background">
+                    <Award className="h-6 w-6" />
                   </div>
-                </div>
-
-                {/* Bio card dengan quote puitis fallback */}
-                <motion.div
-                  custom={2}
-                  variants={sectionVariants}
-                  className="mt-8 p-6 md:p-8 rounded-[2rem] bg-card/50 backdrop-blur-2xl border shadow-xl w-full"
-                >
-                  <p className="text-sm md:text-base font-medium italic text-muted-foreground leading-relaxed">
-                    “
-                    {user.bio ||
-                      'Setiap halaman adalah jejak yang kutinggalkan. Menulis adalah caraku menorehkan kisah di semesta Nusakarsa.'}
-                    ”
-                  </p>
-
-                  <div className="mt-8 pt-8 border-t border-border/50 space-y-4">
-                    {user.domicile && (
-                      <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-muted-foreground">
-                        <MapPin className="h-4 w-4 text-primary" />
-                        <span>{user.domicile}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-muted-foreground">
-                      <Calendar className="h-4 w-4 text-primary" />
-                      <span>Pujangga {user.role}</span>
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* Tombol ikuti / kelola profil */}
-                <motion.div
-                  custom={3}
-                  variants={sectionVariants}
-                  className="w-full mt-8"
-                >
-                  {isOwnProfile ? (
-                    <Button
-                      className="w-full rounded-2xl h-14 font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 active:scale-95 transition-all"
-                      asChild
-                    >
-                      <Link href="/settings">
-                        <Edit className="mr-3 h-4 w-4" /> Kelola Profil
-                      </Link>
-                    </Button>
-                  ) : (
-                    <Button
-                      variant={isFollowing ? 'outline' : 'default'}
-                      className="w-full rounded-2xl h-14 font-black uppercase text-xs tracking-widest transition-all shadow-xl active:scale-95"
-                      onClick={handleFollow}
-                      disabled={isTogglingFollow}
-                    >
-                      {isTogglingFollow ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : isFollowing ? (
-                        <UserMinus className="mr-2 h-4 w-4" />
-                      ) : (
-                        <UserPlus className="mr-2 h-4 w-4" />
-                      )}
-                      {isFollowing ? 'Berhenti Ikuti' : 'Mulai Ikuti'}
-                    </Button>
-                  )}
-                </motion.div>
+                )}
               </div>
-            </motion.aside>
 
-            {/* Konten utama */}
-            <main className="flex-1 space-y-12 pb-20">
-              {/* Statistik */}
+              <div className="space-y-2">
+                <h1 className="text-3xl md:text-5xl font-headline font-black tracking-tight leading-tight text-foreground">
+                  {user.displayName}
+                </h1>
+                <p className="text-sm font-mono text-muted-foreground">
+                  @{user.username}
+                </p>
+              </div>
+
               <motion.div
-                initial="hidden"
-                animate="visible"
-                variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
-                className="grid grid-cols-3 gap-4 md:gap-8 bg-card/50 backdrop-blur-2xl p-6 md:p-8 rounded-[2.5rem] border shadow-2xl"
+                custom={2}
+                variants={sectionVariants}
+                className="mt-8 p-6 md:p-8 rounded-[2rem] bg-card/50 backdrop-blur-2xl border shadow-xl w-full"
               >
-                <motion.div
-                  variants={statVariants}
-                  className="flex flex-col items-center justify-center space-y-1 md:space-y-2 border-r border-border/50"
-                >
-                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary mb-1">
-                    <Layers className="h-5 w-5" />
+                <p className="text-sm md:text-base font-medium italic text-muted-foreground leading-relaxed">
+                  “{user.bio || 'Setiap halaman adalah jejak yang kutinggalkan. Menulis adalah caraku menorehkan kisah di semesta Nusakarsa.'}”
+                </p>
+
+                <div className="mt-8 pt-8 border-t border-border/50 space-y-4">
+                  {user.domicile && (
+                    <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-muted-foreground">
+                      <MapPin className="h-4 w-4 text-primary" />
+                      <span>{user.domicile}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-muted-foreground">
+                    <Calendar className="h-4 w-4 text-primary" />
+                    <span>Pujangga {user.role}</span>
                   </div>
-                  <p className="font-black text-2xl md:text-4xl tracking-tighter text-foreground">
-                    {publishedBooks?.length || 0}
-                  </p>
-                  <p className="text-[8px] md:text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground">
-                    Karya
-                  </p>
-                </motion.div>
-                <motion.button
-                  variants={statVariants}
-                  onClick={() =>
-                    setSheetState({ open: true, type: 'followers' })
-                  }
-                  className="flex flex-col items-center justify-center space-y-1 md:space-y-2 border-r border-border/50 hover:bg-primary/5 rounded-2xl transition-all"
-                >
-                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary mb-1">
-                    <Users className="h-5 w-5" />
-                  </div>
-                  <p className="font-black text-2xl md:text-4xl tracking-tighter text-foreground">
-                    {new Intl.NumberFormat('id-ID', {
-                      notation: 'compact',
-                    }).format(user.followers || 0)}
-                  </p>
-                  <p className="text-[8px] md:text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground">
-                    Pengikut
-                  </p>
-                </motion.button>
-                <motion.button
-                  variants={statVariants}
-                  onClick={() =>
-                    setSheetState({ open: true, type: 'following' })
-                  }
-                  className="flex flex-col items-center justify-center space-y-1 md:space-y-2 hover:bg-primary/5 rounded-2xl transition-all"
-                >
-                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary mb-1">
-                    <UserPlus className="h-5 w-5" />
-                  </div>
-                  <p className="font-black text-2xl md:text-4xl tracking-tighter text-foreground">
-                    {user.following || 0}
-                  </p>
-                  <p className="text-[8px] md:text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground">
-                    Mengikuti
-                  </p>
-                </motion.button>
+                </div>
               </motion.div>
 
-              {/* Daftar buku */}
-              <motion.section
-                custom={4}
+              <motion.div
+                custom={3}
                 variants={sectionVariants}
-                className="space-y-8"
+                className="w-full mt-8"
               >
-                <div className="flex items-center gap-4 px-2">
-                  <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                    <BookOpen className="h-5 w-5" />
-                  </div>
-                  <h2 className="text-xl md:text-3xl font-headline font-black tracking-tight text-foreground">
-                    Arsip <span className="text-primary italic">Karsa.</span>
-                  </h2>
-                  <div className="h-px bg-border flex-1" />
-                </div>
+                {isOwnProfile ? (
+                  <Button
+                    className="w-full rounded-2xl h-14 font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 active:scale-95 transition-all"
+                    asChild
+                  >
+                    <Link href="/settings">
+                      <Edit className="mr-3 h-4 w-4" /> Kelola Profil
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button
+                    variant={isFollowing ? 'outline' : 'default'}
+                    className="w-full rounded-2xl h-14 font-black uppercase text-xs tracking-widest transition-all shadow-xl active:scale-95"
+                    onClick={handleFollow}
+                    disabled={isTogglingFollow}
+                  >
+                    {isTogglingFollow ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : isFollowing ? (
+                      <UserMinus className="mr-2 h-4 w-4" />
+                    ) : (
+                      <UserPlus className="mr-2 h-4 w-4" />
+                    )}
+                    {isFollowing ? 'Berhenti Ikuti' : 'Mulai Ikuti'}
+                  </Button>
+                )}
+              </motion.div>
+            </div>
+          </motion.aside>
 
-                <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
-                  {areBooksLoading
-                    ? Array.from({ length: 3 }).map((_, i) => (
-                        <BookCardSkeleton key={i} />
-                      ))
-                    : publishedBooks?.length === 0 && (
-                        <div className="col-span-full py-20 text-center text-muted-foreground italic font-medium">
-                          Belum ada artefak digital yang diarsipkan.
-                        </div>
-                      )}
-                  {publishedBooks?.map((b, idx) => (
-                    <motion.div
-                      key={b.id}
-                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                    >
-                      <BookCard book={b} />
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.section>
-            </main>
-          </div>
-        </motion.div>
-
-        {/* Dialog preview foto profil – menggunakan next/image */}
-        <Dialog
-          open={isPhotoPreviewOpen}
-          onOpenChange={setIsPhotoPreviewOpen}
-        >
-          <DialogContent className="max-w-none w-screen h-[100dvh] p-0 border-none bg-black/90 flex items-center justify-center rounded-none z-[300]">
-            <button
-              onClick={() => setIsPhotoPreviewOpen(false)}
-              aria-label="Tutup preview foto"
-              className="absolute top-10 right-10 text-white hover:text-primary transition-colors h-12 w-12 flex items-center justify-center bg-white/10 rounded-full backdrop-blur-md border border-white/10"
-            >
-              <X className="h-7 w-7" />
-            </button>
+          <main className="flex-1 space-y-12 pb-20">
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="relative w-[90vw] h-[85vh] rounded-3xl shadow-2xl ring-1 ring-white/10 overflow-hidden"
+              initial="hidden"
+              animate="visible"
+              variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
+              className="grid grid-cols-3 gap-4 md:gap-8 bg-card/50 backdrop-blur-2xl p-6 md:p-8 rounded-[2.5rem] border shadow-2xl"
             >
-              <Image
-                src={user.photoURL || '/avatar.png'}
-                alt="Preview foto profil"
-                fill
-                className="object-contain"
-                sizes="90vw"
-                priority
-              />
+              <motion.div
+                variants={statVariants}
+                className="flex flex-col items-center justify-center space-y-1 md:space-y-2 border-r border-border/50"
+              >
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary mb-1">
+                  <Layers className="h-5 w-5" />
+                </div>
+                <p className="font-black text-2xl md:text-4xl tracking-tighter text-foreground">
+                  {publishedBooks?.length || 0}
+                </p>
+                <p className="text-[8px] md:text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground">
+                  Karya
+                </p>
+              </motion.div>
+              <motion.button
+                variants={statVariants}
+                onClick={() =>
+                  setSheetState({ open: true, type: 'followers' })
+                }
+                className="flex flex-col items-center justify-center space-y-1 md:space-y-2 border-r border-border/50 hover:bg-primary/5 rounded-2xl transition-all"
+              >
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary mb-1">
+                  <Users className="h-5 w-5" />
+                </div>
+                <p className="font-black text-2xl md:text-4xl tracking-tighter text-foreground">
+                  {new Intl.NumberFormat('id-ID', {
+                    notation: 'compact',
+                  }).format(user.followers || 0)}
+                </p>
+                <p className="text-[8px] md:text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground">
+                  Pengikut
+                </p>
+              </motion.button>
+              <motion.button
+                variants={statVariants}
+                onClick={() =>
+                  setSheetState({ open: true, type: 'following' })
+                }
+                className="flex flex-col items-center justify-center space-y-1 md:space-y-2 hover:bg-primary/5 rounded-2xl transition-all"
+              >
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary mb-1">
+                  <UserPlus className="h-5 w-5" />
+                </div>
+                <p className="font-black text-2xl md:text-4xl tracking-tighter text-foreground">
+                  {user.following || 0}
+                </p>
+                <p className="text-[8px] md:text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground">
+                  Mengikuti
+                </p>
+              </motion.button>
             </motion.div>
-          </DialogContent>
-        </Dialog>
+
+            <motion.section
+              custom={4}
+              variants={sectionVariants}
+              className="space-y-8"
+            >
+              <div className="flex items-center gap-4 px-2">
+                <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                  <BookOpen className="h-5 w-5" />
+                </div>
+                <h2 className="text-xl md:text-3xl font-headline font-black tracking-tight text-foreground">
+                  Arsip <span className="text-primary italic">Karsa.</span>
+                </h2>
+                <div className="h-px bg-border flex-1" />
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
+                {areBooksLoading
+                  ? Array.from({ length: 3 }).map((_, i) => (
+                      <BookCardSkeleton key={i} />
+                    ))
+                  : publishedBooks?.length === 0 && (
+                      <div className="col-span-full py-20 text-center text-muted-foreground italic font-medium">
+                        Belum ada artefak digital yang diarsipkan.
+                      </div>
+                    )}
+                {publishedBooks?.map((b, idx) => (
+                  <motion.div
+                    key={b.id}
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <BookCard book={b} />
+                  </motion.div>
+                ))}
+              </div>
+            </motion.section>
+          </main>
+        </div>
       </motion.div>
-    </LazyMotion>
+
+      {/* Dialog preview foto profil – menggunakan next/image */}
+      <Dialog open={isPhotoPreviewOpen} onOpenChange={setIsPhotoPreviewOpen}>
+        <DialogContent className="max-w-none w-screen h-[100dvh] p-0 border-none bg-black/90 flex items-center justify-center rounded-none z-[300]">
+          <button
+            onClick={() => setIsPhotoPreviewOpen(false)}
+            aria-label="Tutup preview foto"
+            className="absolute top-10 right-10 text-white hover:text-primary transition-colors h-12 w-12 flex items-center justify-center bg-white/10 rounded-full backdrop-blur-md border border-white/10"
+          >
+            <X className="h-7 w-7" />
+          </button>
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="relative w-[90vw] h-[85vh] rounded-3xl shadow-2xl ring-1 ring-white/10 overflow-hidden"
+          >
+            <Image
+              src={user.photoURL || '/avatar.png'}
+              alt="Preview foto profil"
+              fill
+              className="object-contain"
+              sizes="90vw"
+            />
+          </motion.div>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
   );
 }
